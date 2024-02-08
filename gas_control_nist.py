@@ -1,11 +1,11 @@
 """Valve and Mass flow control module
 
-__author__ = "Ryuichi Shimogawa"
+__author__ = "Jorge Moncada Vivas"
 __version__ = "1.0"
-__email__ = "ryuichi.shimogawa@stonybrook.edu"
+__email__ = "jmoncadav@bnl.gov"
 
 Notes:
-This module is based on the code written by Jorge Moncada Vivas.
+This module is based on the code written by Jorge Moncada Vivas and Ryuichi Shimogawa
 """
 
 import os
@@ -24,7 +24,7 @@ HID_MFC = "COM0COM\PORT\CNCA1"
 VALVE_POSITION = {"A": 0, "B": 1, "Unknown": 1, "pulse": 0, "cont": 1, "mix": 1}
 
 
-class ValveControl:
+class GasControl:
     def __init__(
         self,
         control_hid: str = HID_VALVE,
@@ -1434,7 +1434,7 @@ class ValveControl:
 
 
 if __name__ == "__main__":
-    vc = ValveControl()
+    vc = GasControl()
     vc.pulses_mode()
     vc.get_status()
 
