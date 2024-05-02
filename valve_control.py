@@ -57,10 +57,10 @@ class ValveControl:
         self.mfc_comport: str = mfc_comport
         self.init_mfc_comport()
         print("MFC comport: {}".format(self.mfc_comport))
-        self.mfc_master = propar.master(self.mfc_comport, 38400)
+        self.mfc_master = propar.master(self.mfc_comport, serial_class=dummy_serial)
 
         self.define_flowsms()
-
+    
     def init_control_comport(self):
         """Initialize the comport of the valve control device
         It will print the available comports if no comport is specified
@@ -180,7 +180,26 @@ class ValveControl:
         bytesize = serial.EIGHTBITS
 
         if self.ser.isOpen() == False:
-            self.ser.timeout = 10
+            self.ser.timeout = 1
+            self.ser.open()
+
+        else:
+            print("The Port is closed: " + self.ser.portstr)
+
+    def dummy_serial(self):
+        """Custom function that establishes the serial connection with the mass flow controllers
+        It will connect to the comport specified in self.mfc_comport
+        """
+
+        self.ser = serial.Serial()
+        self.ser.baudrate = 38400
+        self.ser.port = self.mfc_comport
+        parity = serial.PARITY_NONE
+        stopbits = serial.STOPBITS_ONE
+        bytesize = serial.EIGHTBITS
+
+        if self.ser.isOpen() == False:
+            self.ser.timeout = 1
             self.ser.open()
 
         else:
