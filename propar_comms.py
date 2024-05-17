@@ -21,7 +21,7 @@ import propar
 
 # Gas ID:
 
-#         self.gas_ID = {
+#         gas_ID = {
 #             "CO2": 4,
 #             "CO": 6,
 #             "CH4": 9,
@@ -107,6 +107,6 @@ print(calibration_date)
 id_no = mfc_master.read(4, 113, 12, propar.PP_TYPE_INT8)
 print(id_no)
 
-# Wink CO2 MFC LED n times
+# Wink CO2 MFC LED n times and returns TRUE on print
 wink_n = mfc_master.write(4, 0, 0, propar.PP_TYPE_STRING, 5)
 print(wink_n)
