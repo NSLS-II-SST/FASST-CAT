@@ -48,6 +48,14 @@ for node in nodes:
   print(user_tag)
 
 
+# Get nodes on the network
+nodes = mfc_master.get_nodes()
+# Make wink 5 times all instruments LEDs
+for node in nodes:
+  wink_5 = mfc_master.write(node['address'], 0, 0, propar.PP_TYPE_STRING, 5)
+  print(wink_5)
+
+
 # Prepare a list of parameters for a chained read containing:
 # fmeasure, fsetpoint, temperature, valve output for CO2 MFC
 params = [{'node': 4, 'proc_nr':  33, 'parm_nr': 0, 'parm_type': propar.PP_TYPE_FLOAT},
@@ -92,7 +100,7 @@ operation_hours = mfc_master.read(4, 118, 2, propar.PP_TYPE_INT16)
 print(operation_hours)
 
 # Calibration data for CO2 MFC
-calibration_date = mfc_master.read(4, 113, 9, propar.PP_TYPE_INT8)
+calibration_date = mfc_master.read(4, 113, 9, propar.PP_TYPE_STRING)
 print(calibration_date)
 
 # Bronkhorst Identification Number
@@ -100,5 +108,5 @@ id_no = mfc_master.read(4, 113, 12, propar.PP_TYPE_INT8)
 print(id_no)
 
 # Wink CO2 MFC LED n times
-wink_n = mfc_master.write(4, 0, 0, propar.PP_TYPE_INT8, 5)
+wink_n = mfc_master.write(4, 0, 0, propar.PP_TYPE_STRING, 5)
 print(wink_n)
