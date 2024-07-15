@@ -29,7 +29,7 @@ class GasControl:
         self,
         control_hid: str = HID_VALVE,
         control_comport: str = None,
-        num_valves=8,
+        num_valves=9,
         mfc_hid: str = HID_MFC,
         mfc_comport: str = None,
     ) -> None:
@@ -41,7 +41,7 @@ class GasControl:
             control_hid (str): HID of the valve control device, you can also specify the name or hid of the comport [default: HID_VALVE]
             control_comport (str): Comport of the valve control device [default: None]
             num_valves (int): Number of valves connected to the valve control device [default: 8]
-            mf_hid (str): HID of the mfc device, you can also specify the name or hid of the comport [default: HID_MFC]
+            mfc_hid (str): HID of the mfc device, you can also specify the name or hid of the comport [default: HID_MFC]
             mfc_comport (str): Comport of the mfc device [default: None]
         """
 
@@ -188,7 +188,17 @@ class GasControl:
 
     def carrier_He_mix(self):
         """Fuction that selects He as carrier gas for the mixing line"""
-        self.ser.write(b"5CW\r")
+        self.ser.write(b'/GCW\r')
+        current_position_A = self.ser.readline().decode('utf-8').strip()
+        # print(current_position_A)
+        valve_no_A = current_position_A[1]
+        position_A = current_position_A[-2]
+        if position_A == 'A':
+            position_is_A = 'OFF'
+        elif position_A == 'B':
+            position_is_A = 'ON'
+        else:
+            position_is_A = 'Unknown'
         print("Feeding He to mixing line")
 
     def carrier_Ar_mix(self):
