@@ -232,11 +232,208 @@ class GasControl:
         else:
             # print('Valve "{}" successfully moved to position {}'.format(valve, position))
             pass
-    def get_valve_settings(self, valve):
+    def commands_list(self, valve):
+        self.ser.write('/{}?\r'.format(valve).encode())
+        
+        # Define a buffer to store the data
+        buffer = []
+
+        # Read data from the serial port until you receive a complete set of lines
+        while True:
+            data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+            if not data:  # If no data is received, break the loop
+                break
+            buffer.append(data)  # Add the received line to the buffer  
+        
+        # Split each item at '\r' character to create separate lines
+        lines = [item.split('\r') for item in buffer]
+        # print(lines)
+
+        # Flatten the list of lines into a single list
+        lines = [line for sublist in lines for line in sublist]
+        # print(lines)
+
+        # Combine the lines with newline character '\n'
+        output = '\n'.join(lines)
+
+        # Print the output
+        print(output)
+
+    def toggle_valve_position(self, valve):
+        self.ser.write('/{}TO\r'.format(valve).encode())
+        time.sleep(0.3)
+        
+        # Define a buffer to store the data
+        buffer = []
+
+        # Read data from the serial port until you receive a complete set of lines
+        while True:
+            data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+            if not data:  # If no data is received, break the loop
+                break
+            buffer.append(data)  # Add the received line to the buffer  
+        
+        # Split each item at '\r' character to create separate lines
+        lines = [item.split('\r') for item in buffer]
+        # print(lines)
+
+        # Flatten the list of lines into a single list
+        lines = [line for sublist in lines for line in sublist]
+        # print(lines)
+
+        # Combine the lines with newline character '\n'
+        output = '\n'.join(lines)
+
+        # Print the output
+        print(output)
+
+    def valve_controller_settings(self, valve):
         self.ser.write('/{}STAT\r'.format(valve).encode())
-        current_position = self.ser.readline().decode('utf-8').strip()
-        print(current_position)
-    
+        
+        # Define a buffer to store the data
+        buffer = []
+
+        # Read data from the serial port until you receive a complete set of lines
+        while True:
+            data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+            if not data:  # If no data is received, break the loop
+                break
+            buffer.append(data)  # Add the received line to the buffer  
+        
+        # Split each item at '\r' character to create separate lines
+        lines = [item.split('\r') for item in buffer]
+        # print(lines)
+
+        # Flatten the list of lines into a single list
+        lines = [line for sublist in lines for line in sublist]
+        # print(lines)
+
+        # Combine the lines with newline character '\n'
+        output = '\n'.join(lines)
+
+        # Print the output
+        print(output)
+
+    def valve_actuation_time(self, valve):
+        self.ser.write('/{}TM\r'.format(valve).encode())
+        
+        # Define a buffer to store the data
+        buffer = []
+
+        # Read data from the serial port until you receive a complete set of lines
+        while True:
+            data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+            if not data:  # If no data is received, break the loop
+                break
+            buffer.append(data)  # Add the received line to the buffer  
+        
+        # Split each item at '\r' character to create separate lines
+        lines = [item.split('\r') for item in buffer]
+        # print(lines)
+
+        # Flatten the list of lines into a single list
+        lines = [line for sublist in lines for line in sublist]
+        # print(lines)
+
+        # Combine the lines with newline character '\n'
+        output = '\n'.join(lines)
+
+        # Print the output
+        print(output)    
+
+    def valve_number_ports(self, valve):
+        self.ser.write('/{}NP\r'.format(valve).encode())
+        
+        # Define a buffer to store the data
+        buffer = []
+
+        # Read data from the serial port until you receive a complete set of lines
+        while True:
+            data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+            if not data:  # If no data is received, break the loop
+                break
+            buffer.append(data)  # Add the received line to the buffer  
+        
+        # Split each item at '\r' character to create separate lines
+        lines = [item.split('\r') for item in buffer]
+        # print(lines)
+
+        # Flatten the list of lines into a single list
+        lines = [line for sublist in lines for line in sublist]
+        # print(lines)
+
+        # Combine the lines with newline character '\n'
+        output = '\n'.join(lines)
+        print(output)    
+
+    def valve_actuation_message(self, valve, message=None):
+        if message == 'no message':
+            message = 0
+            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            buffer = []
+            while True:
+                data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+                if not data:  # If no data is received, break the loop
+                    break
+                buffer.append(data)
+            lines = [item.split('\r') for item in buffer]
+            lines = [line for sublist in lines for line in sublist]
+            output = '\n'.join(lines)
+            print(output)
+            
+        elif message == 'short':
+            message = 1
+            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            buffer = []
+            while True:
+                data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+                if not data:  # If no data is received, break the loop
+                    break
+                buffer.append(data)
+            lines = [item.split('\r') for item in buffer]
+            lines = [line for sublist in lines for line in sublist]
+            output = '\n'.join(lines)
+            print(output)
+        
+        elif message == 'large':
+            message = 2
+            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            buffer = []
+            while True:
+                data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+                if not data:  # If no data is received, break the loop
+                    break
+                buffer.append(data)
+            lines = [item.split('\r') for item in buffer]
+            lines = [line for sublist in lines for line in sublist]
+            output = '\n'.join(lines)
+            print(output)
+
+        else:
+            self.ser.write('/{}IFM\r'.format(valve).encode())
+        
+            # Define a buffer to store the data
+            buffer = []
+
+            # Read data from the serial port until you receive a complete set of lines
+            while True:
+                data = self.ser.readline().decode().strip()  # Read a line of data and decode it
+                if not data:  # If no data is received, break the loop
+                    break
+                buffer.append(data)  # Add the received line to the buffer  
+            
+            # Split each item at '\r' character to create separate lines
+            lines = [item.split('\r') for item in buffer]
+            # print(lines)
+
+            # Flatten the list of lines into a single list
+            lines = [line for sublist in lines for line in sublist]
+            # print(lines)
+
+            # Combine the lines with newline character '\n'
+            output = '\n'.join(lines)
+            print(output)
+            
     def carrier_He_A(self):
         """Fuction that selects He as carrier gas for the Gas Line A"""
         self.move_valve_to_position('G', 'OFF')
