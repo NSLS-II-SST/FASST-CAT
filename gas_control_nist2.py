@@ -232,6 +232,10 @@ class GasControl:
         else:
             # print('Valve "{}" successfully moved to position {}'.format(valve, position))
             pass
+    def get_valve_settings(self, valve):
+        self.ser.write('/{}STAT\r'.format(valve).encode())
+        current_position = self.ser.readline().decode('utf-8').strip()
+        print(current_position)
     
     def carrier_He_A(self):
         """Fuction that selects He as carrier gas for the Gas Line A"""
