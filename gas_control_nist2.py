@@ -3,6 +3,7 @@
 __author__ = "Jorge Moncada Vivas"
 __version__ = "1.0"
 __email__ = "moncadaja@gmail.com"
+__date__ = "9/10/2024"
 
 Notes:
 By Jorge Moncada Vivas and contributions of Ryuichi Shimogawa
@@ -761,7 +762,7 @@ class GasControl:
             "CO2_AH": 1.0,
             "CO2_AL": 1.0,
             "CO2_BH": 1.0,
-            "CO2_AL": 1.0,
+            "CO2_BL": 1.0,
             "He_A": 1.0,
             "He_B": 1.0,
             "Ar_A": 1.0,
@@ -790,7 +791,7 @@ class GasControl:
             "CO2_AH": self.feed_CO2_AB,
             "CO2_AL": self.feed_CO2_AB,
             "CO2_BH": self.feed_CO2_AB,
-            "CO2_AL": self.feed_CO2_AB,
+            "CO2_BL": self.feed_CO2_AB,
             "He_A": self.carrier_He_A,
             "He_B": self.carrier_He_B,
             "Ar_A": self.carrier_Ar_A,
@@ -1424,14 +1425,14 @@ class GasControl:
             if "data" in value:
                 pressure = value.get("data")
             lst_p_a.append(format(pressure, ".2f"))
-            return lst_p_a[0]
+            # return lst_p_a[0]
 
         lst_p_b = []
         for value in values_p_b:
             if "data" in value:
                 pressure = value.get("data")
             lst_p_b.append(format(pressure, ".2f"))
-            return lst_p_b[0]
+            # return lst_p_b[0]
 
         # Calculating percentage values for the actual flows
 
@@ -1846,3 +1847,5 @@ if __name__ == "__main__":
     gc.flowsms_status()
 
     gc.get_pv_loop1()
+
+
