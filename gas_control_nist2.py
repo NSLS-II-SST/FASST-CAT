@@ -1485,18 +1485,14 @@ class GasControl:
             fluid_carrier_b = "N2"
 
         lst_p_a = []
-        for value in values_p_a:
-            if "data" in value:
-                pressure = value.get("data")
-            lst_p_a.append(format(pressure, ".2f"))
-            # return lst_p_a[0]
+        p_a_dict = values_p_a[0]
+        self.p_a = format(p_a_dict.get("data"), ".2f")
+        lst_p_a.append(self.p_a)
 
         lst_p_b = []
-        for value in values_p_b:
-            if "data" in value:
-                pressure = value.get("data")
-            lst_p_b.append(format(pressure, ".2f"))
-            # return lst_p_b[0]
+        p_b_dict = values_p_b[0]
+        self.p_b = format(p_b_dict.get("data"), ".2f")
+        lst_p_b.append(self.p_b)
 
         # Calculating percentage values for the actual flows
 
@@ -1681,14 +1677,14 @@ class GasControl:
                 result = float(temp_tc) < float(sp)
                 if result == True:
                     temp_tc = float(temp_tc)
-                    pressure_a = self.flowsms_status()
-                    pressure_b = self.flowsms_status()
-                    print("-----------------------------------------------------------------------------------------------------")
-                    print(f"Pressure in line A: {pressure_a} psia")
-                    print(f"Pressure in line B: {pressure_b} psia")
-                    print(f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%")
-                    print("-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F\033[F\033[F", end="")
+                    # pressure_a = self.p_a
+                    # pressure_b = self.p_b
+                    print("-----------------------------------------------------------------------------------------------------\n",
+                    # print(f"Pressure in line A: {pressure_a} psia")
+                    # print(f"Pressure in line B: {pressure_b} psia")
+                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
+                    "-----------------------------------------------------------------------------------------------------")
+                    print("\033[F\033[F\033[F", end="")
                     time.sleep(1)
                 else:
                     print('{} C setpoint reached!'.format(sp))
@@ -1729,14 +1725,15 @@ class GasControl:
                 if result == True:
                     temp_tc = float(temp_tc)
                     sp = float(sp)
-                    pressure_a = self.flowsms_status()
-                    pressure_b = self.flowsms_status()
-                    print("-----------------------------------------------------------------------------------------------------")
-                    print(f"Pressure in line A: {pressure_a} psia")
-                    print(f"Pressure in line B: {pressure_b} psia")
-                    print(f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---")
-                    print("-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F\033[F\033[F", end="")                    
+                    # self.p_a, self.p_b = self.flowsms_status()
+                    # pressure_a = self.p_a
+                    # pressure_b = self.p_b
+                    print("-----------------------------------------------------------------------------------------------------\n",
+                    # print(f"Pressure in line A: {pressure_a} psia")
+                    # print(f"Pressure in line B: {pressure_b} psia")
+                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---\n",
+                    "-----------------------------------------------------------------------------------------------------")
+                    print("\033[F\033[F\033[F", end="")                
                     time.sleep(1)
                 else:
                     print('{} C setpoint reached!'.format(sp))
@@ -1797,14 +1794,14 @@ class GasControl:
         while True:
             elapsed_time = time.time() - start_time
             if elapsed_time < time_in_seconds:                
-                pressure_a = self.flowsms_status()
-                pressure_b = self.flowsms_status()
+                # pressure_a = self.flowsms_status()
+                # pressure_b = self.flowsms_status()
+                print("-----------------------------------------------------------------------------------------------------\n")
+                # print(f"Pressure in line A: {pressure_a} psia")
+                # print(f"Pressure in line B: {pressure_b} psia")
+                print(f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds\n")
                 print("-----------------------------------------------------------------------------------------------------")
-                print(f"Pressure in line A: {pressure_a} psia")
-                print(f"Pressure in line B: {pressure_b} psia")
-                print(f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds")
-                print("-----------------------------------------------------------------------------------------------------")
-                print("\033[F\033[F\033[F\033[F\033[F", end="")
+                print("\033[F\033[F\033[F", end="")
                 time.sleep(1)
             else:
                 print("-----------------------------------------------------------------------------------------------------\n",
