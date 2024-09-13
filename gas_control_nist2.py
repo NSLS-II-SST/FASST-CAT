@@ -82,6 +82,9 @@ class GasControl:
         print("TMP comport: {}".format(self.tmp_comport))
         self.tmp_master = minimalmodbus.Instrument(self.tmp_comport, self.sub_address_tmp)
 
+        self.p_a = 0
+        self.p_b = 0
+
     def init_valves_comport(self):
         """Initialize the comport of the valve control device
         It will print the available comports if no comport is specified
@@ -1091,7 +1094,7 @@ class GasControl:
 
         self.set_flowrate("O2_B", O2_B)
 
-    def flowsms_status(self, delay=0.0):
+    def flowsms_status(self, delay=0.0, verbose=True):
         """Function that reads the flow rates of the gases in the Flow-SMS mass flow controllers
 
         Args:
@@ -1486,13 +1489,13 @@ class GasControl:
 
         lst_p_a = []
         p_a_dict = values_p_a[0]
-        self.p_a = format(p_a_dict.get("data"), ".2f")
-        lst_p_a.append(self.p_a)
+        p_a = format(p_a_dict.get("data"), ".2f")
+        lst_p_a.append(p_a)
 
         lst_p_b = []
         p_b_dict = values_p_b[0]
-        self.p_b = format(p_b_dict.get("data"), ".2f")
-        lst_p_b.append(self.p_b)
+        p_b = format(p_b_dict.get("data"), ".2f")
+        lst_p_b.append(p_b)
 
         # Calculating percentage values for the actual flows
 
@@ -1531,116 +1534,127 @@ class GasControl:
             # carrier_b_percent = format((float(lst_carrier_b[0])/total_flow_b)*100, '.1f')
 
         # Creating and printing table with the actual and set flows, and line pressures
-        print(" ")
-        print("------------------------------------------------------------")
-        print("-------------------")
-        print("--- Flow Report ---")
-        print("-------------------")
 
-        if float(lst_h2_d2_a[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_h2_d2_a, lst_h2_d2_a[0], lst_h2_d2_a[1], H2_D2_percent_a
+        if verbose:
+
+            print(" ")
+            print("------------------------------------------------------------")
+            print("-------------------")
+            print("--- Flow Report ---")
+            print("-------------------")
+
+            if float(lst_h2_d2_a[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_h2_d2_a, lst_h2_d2_a[0], lst_h2_d2_a[1], H2_D2_percent_a
+                    )
                 )
-            )
 
-        if float(lst_h2_d2_b[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_h2_d2_b, lst_h2_d2_b[0], lst_h2_d2_b[1],H2_D2_percent_b
+            if float(lst_h2_d2_b[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_h2_d2_b, lst_h2_d2_b[0], lst_h2_d2_b[1],H2_D2_percent_b
+                    )
                 )
-            )
 
-        if float(lst_o2_a[1]) == 0:
-            pass
-        else:
-            print(
-                "O2_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    lst_o2_a[0], lst_o2_a[1], O2_percent_a
+            if float(lst_o2_a[1]) == 0:
+                pass
+            else:
+                print(
+                    "O2_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        lst_o2_a[0], lst_o2_a[1], O2_percent_a
+                    )
                 )
-            )
 
-        if float(lst_o2_b[1]) == 0:
-            pass
-        else:
-            print(
-                "O2_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    lst_o2_b[0], lst_o2_b[1], O2_percent_b
+            if float(lst_o2_b[1]) == 0:
+                pass
+            else:
+                print(
+                    "O2_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        lst_o2_b[0], lst_o2_b[1], O2_percent_b
+                    )
                 )
-            )
 
-        if float(lst_co_co2_a[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_co_co2_a, lst_co_co2_a[0], lst_co_co2_a[1], CO_CO2_percent_a
+            if float(lst_co_co2_a[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_co_co2_a, lst_co_co2_a[0], lst_co_co2_a[1], CO_CO2_percent_a
+                    )
                 )
-            )
 
-        if float(lst_co_co2_b[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_co_co2_b, lst_co_co2_b[0], lst_co_co2_b[1], CO_CO2_percent_b
+            if float(lst_co_co2_b[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_co_co2_b, lst_co_co2_b[0], lst_co_co2_b[1], CO_CO2_percent_b
+                    )
                 )
-            )
 
-        if float(lst_hc_a[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_hc_a, lst_hc_a[0], lst_hc_a[1], HC_percent_a
+            if float(lst_hc_a[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_hc_a, lst_hc_a[0], lst_hc_a[1], HC_percent_a
+                    )
                 )
-            )
 
-        if float(lst_hc_b[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                    fluid_hc_b, lst_hc_b[0], lst_hc_b[1], HC_percent_b
+            if float(lst_hc_b[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                        fluid_hc_b, lst_hc_b[0], lst_hc_b[1], HC_percent_b
+                    )
                 )
-            )
 
-        if float(lst_carrier_a[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm".format(
-                    fluid_carrier_a, lst_carrier_a[0], lst_carrier_a[1]
+            if float(lst_carrier_a[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm".format(
+                        fluid_carrier_a, lst_carrier_a[0], lst_carrier_a[1]
+                    )
                 )
-            )
 
-        if float(lst_carrier_b[1]) == 0:
-            pass
-        else:
-            print(
-                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm".format(
-                    fluid_carrier_b, lst_carrier_b[0], lst_carrier_b[1]
+            if float(lst_carrier_b[1]) == 0:
+                pass
+            else:
+                print(
+                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm".format(
+                        fluid_carrier_b, lst_carrier_b[0], lst_carrier_b[1]
+                    )
                 )
-            )
 
-        print("Total flow line A: {} sccm".format(total_flow_a))
+            print("Total flow line A: {} sccm".format(total_flow_a))
 
-        print("Total flow line B: {} sccm".format(total_flow_b))
+            print("Total flow line B: {} sccm".format(total_flow_b))
 
-        print("-----------------------")
-        print("--- Pressure Report ---")
-        print("-----------------------")
+            print("-----------------------")
+            print("--- Pressure Report ---")
+            print("-----------------------")
 
-        print("Pressure in line A: {} psia".format(lst_p_a[0]))
+            print("Pressure in line A: {} psia".format(lst_p_a[0]))
 
-        print("Pressure in line B: {} psia".format(lst_p_b[0]))
+            print("Pressure in line B: {} psia".format(lst_p_b[0]))
 
-        print("------------------------------------------------------------")
-        # return lst_p_a[0], lst_p_b[0]
+            print("------------------------------------------------------------")
+
+    def pressure_report(self):
+        values_p_a = self.mfc_master.read_parameters([{"node": 3,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
+        p_a_dict = values_p_a[0]
+        p_a = format(p_a_dict.get("data"), ".2f")
+        values_p_b = self.mfc_master.read_parameters([{"node": 14,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
+        p_b_dict = values_p_b[0]
+        p_b = format(p_b_dict.get("data"), ".2f")
+        print(f"P_A = {p_a} psia\nP_B = {p_b} psia\n")
 
     def get_pv_loop1(self):
         """Return the process value (PV) for loop1."""
@@ -1677,14 +1691,11 @@ class GasControl:
                 result = float(temp_tc) < float(sp)
                 if result == True:
                     temp_tc = float(temp_tc)
-                    # pressure_a = self.p_a
-                    # pressure_b = self.p_b
+                    self.pressure_report()
                     print("-----------------------------------------------------------------------------------------------------\n",
-                    # print(f"Pressure in line A: {pressure_a} psia")
-                    # print(f"Pressure in line B: {pressure_b} psia")
                     f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
                     "-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F", end="")
+                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
                     time.sleep(1)
                 else:
                     print('{} C setpoint reached!'.format(sp))
@@ -1725,15 +1736,11 @@ class GasControl:
                 if result == True:
                     temp_tc = float(temp_tc)
                     sp = float(sp)
-                    # self.p_a, self.p_b = self.flowsms_status()
-                    # pressure_a = self.p_a
-                    # pressure_b = self.p_b
+                    self.pressure_report()
                     print("-----------------------------------------------------------------------------------------------------\n",
-                    # print(f"Pressure in line A: {pressure_a} psia")
-                    # print(f"Pressure in line B: {pressure_b} psia")
                     f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---\n",
                     "-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F", end="")                
+                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")                
                     time.sleep(1)
                 else:
                     print('{} C setpoint reached!'.format(sp))
@@ -1793,15 +1800,12 @@ class GasControl:
         start_time = time.time()
         while True:
             elapsed_time = time.time() - start_time
-            if elapsed_time < time_in_seconds:                
-                # pressure_a = self.flowsms_status()
-                # pressure_b = self.flowsms_status()
-                print("-----------------------------------------------------------------------------------------------------\n")
-                # print(f"Pressure in line A: {pressure_a} psia")
-                # print(f"Pressure in line B: {pressure_b} psia")
-                print(f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds\n")
+            if elapsed_time < time_in_seconds:
+                self.pressure_report()            
                 print("-----------------------------------------------------------------------------------------------------")
-                print("\033[F\033[F\033[F", end="")
+                print(f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds")
+                print("-----------------------------------------------------------------------------------------------------")
+                print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
                 time.sleep(1)
             else:
                 print("-----------------------------------------------------------------------------------------------------\n",
