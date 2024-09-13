@@ -1801,15 +1801,16 @@ class GasControl:
         while True:
             elapsed_time = time.time() - start_time
             if elapsed_time < time_in_seconds:
+                temp_tc = self.tmp_master.read_register(1, 1)
                 self.pressure_report()            
-                print("-----------------------------------------------------------------------------------------------------")
-                print(f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds")
-                print("-----------------------------------------------------------------------------------------------------")
+                print("-----------------------------------------------------------------------------------------------------\n",
+                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc} degC\n",
+                "-----------------------------------------------------------------------------------------------------")
                 print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
                 time.sleep(1)
             else:
                 print("-----------------------------------------------------------------------------------------------------\n",
-                f"Wait time of {time_in_seconds} seconds completed.",
+                f"Wait time of {time_in_seconds} seconds at {temp_tc} degC completed.",
                 "-------------------------------------------------------------------\n",
                 "-----------------------------------------------------------------------------------------------------", end="\r")
                 break
