@@ -1818,23 +1818,35 @@ class GasControl:
 
     
     ## Remote Triggering
-    def DRIFTS_PID(self):    
-        self.tmp_master.write_register(6, 86.92)
-        self.tmp_master.write_register(8, 95.52)
-        self.tmp_master.write_register(9, 15.92)
-        p=self.tmp_master.read_register(6, 2)
-        i=self.tmp_master.read_register(8, 2)
-        d=self.tmp_master.read_register(9, 2)    
-        print("PID for DRIFTS cell is imported" + " ,proportional band={}".format(p) + " , integral time={}".format(i) + ", derivative time={}".format(d) + ", please switch output to LOCAL")
+    # 
+    # The slave register can hold integer values in the range 0 to 65535
+    def drift_mantis_pid(self):    
+        self.tmp_master.write_register(6, 86.9, 1)
+        self.tmp_master.write_register(8, 96)
+        self.tmp_master.write_register(9, 16)
+        p=self.tmp_master.read_register(6, 1)
+        i=self.tmp_master.read_register(8)
+        d=self.tmp_master.read_register(9)    
+        print(f"PID for DRIFTS cell is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
    
-    def Clausen_Cell_PID(self):    
+    def clausen_coil_local_pid(self):    
+        self.tmp_master.write_register(6, 987.6, 1)
+        self.tmp_master.write_register(8, 96)
+        self.tmp_master.write_register(9, 16)
+        p=self.tmp_master.read_register(6, 1)
+        i=self.tmp_master.read_register(8)
+        d=self.tmp_master.read_register(9)    
+        print(f"PID for clausen cell with coil heating elements and LOCAL power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
+   
+    
+    def clausen_coil_remote_pid(self):    
         self.tmp_master.write_register(6, 600)
         self.tmp_master.write_register(8, 20)
         self.tmp_master.write_register(9, 4)
         p=self.tmp_master.read_register(6)
         i=self.tmp_master.read_register(8)
         d=self.tmp_master.read_register(9)    
-        print("PID for Clausen cell is imported" + " ,proportional band={}".format(p) + ", integral time={}".format(i) + ", derivative time={}".format(d) + ", please switch output to AUX")
+        print(f"PID for clausen cell with coil heating elements and REMOTE power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to REMOTE")
   
     def MS_ON(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
