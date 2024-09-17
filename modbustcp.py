@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-""" Read 10 coils and print result on stdout. """
 
 import time
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import encode_ieee, decode_ieee, \
                               long_list_to_word, word_list_to_long
 
-# init modbus client
 
 HOST = "10.68.42.3"
 PORT = 502
