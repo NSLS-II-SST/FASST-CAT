@@ -18,6 +18,9 @@ from datetime import datetime
 
 import propar
 import minimalmodbus
+from pyModbusTCP.client import ModbusClient
+from pyModbusTCP.utils import encode_ieee, decode_ieee, \
+                              long_list_to_word, word_list_to_long
 
 
 # The HID for the valve 3. This is should ideally be a specified in a different file.
@@ -28,6 +31,7 @@ BAUD_MFC = 38400
 HID_TMP = "COM2"
 SUB_ADD_TMP = 2
 HOST_EURO = "10.68.42.3"
+PORT_EURO = 502
 
 class GasControl:
     def __init__(
@@ -41,6 +45,8 @@ class GasControl:
         tmp_hid: str = HID_TMP,
         tmp_comport: str = None,
         sub_address_tmp: int = SUB_ADD_TMP,
+        host: str = HOST_EURO,
+        port: int = PORT_EURO,
     ) -> None:
         """Initialize the valve control device
         You can specify the HID or the comport of the valve control device
@@ -77,6 +83,8 @@ class GasControl:
         self.init_tmp_comport()
         print("TMP comport: {}".format(self.tmp_comport))
         self.tmp_master = minimalmodbus.Instrument(self.tmp_comport, self.sub_address_tmp)
+
+        self.modbustcp = ModbusClient(host, port)
 
         self.p_a = 0
         self.p_b = 0
@@ -1652,12 +1660,319 @@ class GasControl:
         p_b = format(p_b_dict.get("data"), ".2f")
         print(f"P_A = {p_a} psia\nP_B = {p_b} psia\n")
 
-    def get_pv_loop1(self):
+    def get_temp_wsp(self):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        regs_list_1 = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
+        print(regs_list_1)
+        print(f"WSP Temp = {regs_list_1} degC")
+        self.modbustcp.close()
+
+    def get_temp_tc(self):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        regs_list_1 = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+        print(regs_list_1)
+        print(f"TC Temp = {regs_list_1} degC")
+        self.modbustcp.close()
+
+    def get_temp_prog(self):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        regs_list_1 = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
+        print(regs_list_1)
+        print(f"Prog Temp = {regs_list_1} degC")
+        self.modbustcp.close()
+
+    def get_pw_prog(self):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        regs_list_1 = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
+        print(regs_list_1)
+        print(f"Prog Power = {regs_list_1}%")
+        self.modbustcp.close()
+
+    def get_heating_rate(self):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        regs_list_1 = format(self.modbustcp.read_holding_registers(35)[0]*0.1, ".1f")
+        print(regs_list_1)
+        print(f"Heating rate = {regs_list_1} degC/min")
+        self.modbustcp.close()
+
+    def write_wsp(self, sp):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        sp = int(sp)*10
+        self.modbustcp.write_single_register(2, sp)
+        self.get_temp_wsp()
+        self.modbustcp.close()
+
+    def write_heating_rate(self, rate):
+        """Return the process value (PV) for loop1."""
+        self.modbustcp.open()
+        rate = int(rate)*10
+        self.modbustcp.write_single_register(35, rate)
+        self.get_heating_rate()
+        self.modbustcp.close()
+
+    def heating_event(self, rate_sp = None, sp = None):
+        """Loops over actual temperature in an heating event until setpoint is reached"""
+        self.modbustcp.open()
+        print('Starting heating event:')
+        try:
+            print('Heating rate: {} C/min'.format(rate_sp))
+            rate_sp = int(rate_sp*10)
+            self.modbustcp.write_single_register(35, rate_sp)
+        except:
+            rate_sp = None      
+        try:
+            print('Setpoint: {} C'.format(sp))
+            sp = int(sp*10)
+            self.modbustcp.write_single_register(2, sp)
+        except:
+            sp = None      
+        while True:
+            try:
+                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+                temp_programmer = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
+                power_out = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
+                sp = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
+            except IOError:
+                continue
+                # print("Failed to read from instrument")
+            except ValueError:
+                continue
+                # print("Instrument response is invalid")
+            try:
+                result = float(temp_tc) < float(sp)
+                if result == True:
+                    temp_tc = float(temp_tc)
+                    self.pressure_report()
+                    print("-----------------------------------------------------------------------------------------------------\n",
+                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
+                    "-----------------------------------------------------------------------------------------------------")
+                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
+                    time.sleep(1)
+                else:
+                    print('{} C setpoint reached!'.format(sp))
+                    break
+            except TypeError:
+                continue
+        self.modbustcp.close()
+
+    def cooling_event(self, rate_sp = None, sp = None):
+        """Loops over actual temperature in an heating event until setpoint is reached"""
+        self.modbustcp.open()
+        print('Starting cooling event:')
+        try:
+            print('Heating rate: {} C/min'.format(rate_sp))
+            rate_sp = int(rate_sp*10)
+            self.modbustcp.write_single_register(35, rate_sp)
+        except:
+            rate_sp = None      
+        try:
+            print('Setpoint: {} C'.format(sp))
+            sp = int(sp*10)
+            self.modbustcp.write_single_register(2, sp)
+        except:
+            sp = None      
+        while True:
+            try:
+                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+                temp_programmer = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
+                power_out = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
+                sp = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
+            except IOError:
+                continue
+                # print("Failed to read from instrument")
+            except ValueError:
+                continue
+                # print("Instrument response is invalid")
+            try:
+                result = float(temp_tc) > float(sp)
+                if result == True:
+                    temp_tc = float(temp_tc)
+                    self.pressure_report()
+                    print("-----------------------------------------------------------------------------------------------------\n",
+                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
+                    "-----------------------------------------------------------------------------------------------------")
+                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="") 
+                    time.sleep(1)
+                else:
+                    print('{} C setpoint reached!'.format(sp))
+                    break
+            except TypeError:
+                continue
+        self.modbustcp.close()
+
+    def temperature_ramping_event(self, rate_sp = None, sp = None ):
+        while True:
+            try:
+                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+            except IOError:
+                continue
+                # print("Failed to read from instrument")
+            except ValueError:
+                continue
+                # print("Instrument response is invalid")
+            try:
+                result = float(temp_tc) > float(sp)
+                if result == True:
+                    self.cooling_event(rate_sp, sp)
+                    print('Starting cooling event')
+                    break
+                else:
+                    self.heating_event(rate_sp, sp)
+                    print('Starting heating event')
+                    break
+            except TypeError:
+                continue
+
+    def setpoint_finish_experiment(self):
+        """Loops over actual temperature in an cooling event until setpoint is reached"""
+        rate_sp=10
+        sp=18
+    
+        print('adjust temperature set point to 18C:')
+        try:
+            print(f"Cooling rate: {rate_sp} C/min")
+            rate_sp = int(rate_sp*10)
+            self.modbustcp.write_single_register(35, rate_sp)
+        except:
+            rate_sp = None
+    
+        try:
+            print(f"Setpoint: {sp} C")
+            sp = int(sp*10)
+            self.modbustcp.write_single_register(2, sp)
+        except:
+            sp = None
+
+    def time_event(self, time_in_seconds: int, argument: str):
+        """Waits for a specified time while printing the elapsed time on the terminal.
+
+        Args:
+            time_in_seconds (int): The time to wait in seconds.
+        """
+        start_time = time.time()
+        while True:
+            elapsed_time = time.time() - start_time
+            if elapsed_time < time_in_seconds:
+                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+                self.pressure_report()            
+                print("-----------------------------------------------------------------------------------------------------\n",
+                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc} degC\n",
+                "-----------------------------------------------------------------------------------------------------")
+                print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
+                time.sleep(1)
+            else:
+                print("-----------------------------------------------------------------------------------------------------\n",
+                f"Wait time of {time_in_seconds} seconds at {temp_tc} degC completed.",
+                "-------------------------------------------------------------------\n",
+                "-----------------------------------------------------------------------------------------------------", end="\r")
+                break
+
+    def drift_mantis_pid(self):
+        self.modbustcp.open()
+        self.modbustcp.write_multiple_registers(6,[869,0,96,16])
+        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        p = regs_list_2[0]*0.1
+        i = regs_list_2[2]
+        d = regs_list_2[3]
+        print(f"PID for Harrick Mantis DRIFTS cell is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
+        self.modbustcp.close()
+
+    def clausen_coil_local_pid(self):    
+        self.modbustcp.open()
+        self.modbustcp.write_multiple_registers(6,[9876,0,96,16])
+        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        p = regs_list_2[0]*0.1
+        i = regs_list_2[2]
+        d = regs_list_2[3]
+        print(f"PID for clausen cell with coil heating elements and REMOTE power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
+        self.modbustcp.close()
+        
+    def clausen_coil_remote_pid(self):
+        self.modbustcp.open()
+        self.modbustcp.write_multiple_registers(6,[6000,0,20,4])
+        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        p = regs_list_2[0]*0.1
+        i = regs_list_2[2]
+        d = regs_list_2[3]
+        print(f"PID for clausen cell with coil heating elements and REMOTE power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to REMOTE")
+        self.modbustcp.close()
+  
+    def MS_ON(self):
+        """Sends a logic value (0 or 1) to perform remote MS digital triggering to RlyAA"""
+        self.modbustcp.write_single_register(363,0)
+        time.sleep(1)
+        print('MS recipe started')
+    
+    def MS_OFF(self):
+        """Sends a logic value (0 or 1) to perform remote MS digital triggering to RlyAA"""
+        self.modbustcp.write_single_register(363,1)
+        time.sleep(1)
+        print('MS recipe stopped')
+    
+    def IR_ON(self):
+        """Sends 5V pulse to perform remote IR triggering to logic A"""    
+        self.modbustcp.write_single_register(376,5)
+        # value_high = self.modbustcp.read_holding_registers(376)[0]
+        time.sleep(1)
+        # print(value_high)
+        self.modbustcp.write_single_register(376,0)
+        # value_low = self.modbustcp.read_holding_registers(376)[0]
+        # print(value_low)
+        print('IR data acquisition started')
+        now = datetime.now()
+        dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
+        print('\ndate and time =', dt_start)
+    
+    def pulse_ON(self):
+        """Sends 3V to perform remote triggering to logic A"""    
+        self.modbustcp.write_single_register(376,3)
+        #sleep(1)
+        #self.write_register(376, 0)
+        print('Pulse ON')
+        now = datetime.now()
+        dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
+        print('\ndate and time =', dt_start)
+    
+    def pulse_OFF(self):
+        """Sends 0V to perform remote triggering to logic A"""    
+        self.modbustcp.write_single_register(376,0)
+        #sleep(1)
+        #self.write_register(376, 0)
+        print('Pulse OFF')
+        now = datetime.now()
+        dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
+        print('\ndate and time =', dt_start)
+    
+    def IR_STATUS(self):
+        """Sends 5V to perform remote triggering to logic A"""    
+        while True:
+            try:
+                result = self.modbustcp.read_holding_registers(361)[0]
+                # print(result)
+            except IOError:
+                continue
+                # print("Failed to read from instrument")
+            except ValueError:
+                continue
+                # print("Instrument response is invalid")
+            if result == 1:
+                break
+            elif result == 0:
+                time.sleep(0.1)
+                continue
+    
+    def get_pv_loop1_rs232(self):
         """Return the process value (PV) for loop1."""
         pv = self.tmp_master.read_register(2, 1)
         print("PV = {} degC".format(pv))
     
-    def heating_event(self, rate_sp = None, sp = None):
+    def heating_event_rs232(self, rate_sp = None, sp = None):
         """Loops over actual temperature in an heating event until setpoint is reached"""
         print('Starting heating event:')
         try:
@@ -1700,7 +2015,7 @@ class GasControl:
                 continue
       
         
-    def cooling_event(self, rate_sp = None, sp = None):
+    def cooling_event_rs232(self, rate_sp = None, sp = None):
         """Loops over actual temperature in an cooling event until setpoint is reached"""
     
         print('Starting cooling event:')
@@ -1744,7 +2059,7 @@ class GasControl:
             except TypeError:
                 continue
         
-    def temperature_ramping_event(self,rate_sp = None, sp = None ):
+    def temperature_ramping_event_rs232(self,rate_sp = None, sp = None ):
         while True:
             try:
                 temp_pv = self.tmp_master.read_register(289, 1) 
@@ -1757,17 +2072,17 @@ class GasControl:
             try:
                 result = float(temp_pv) > float(sp)
                 if result == True:
-                    self.cooling_event(rate_sp, sp)
+                    self.cooling_event_rs232(rate_sp, sp)
                     print('start cooling event')
                     break
                 else:
-                    self.heating_event(rate_sp, sp)
+                    self.heating_event_rs232(rate_sp, sp)
                     print('start heating event')
                     break
             except TypeError:
                 continue
 
-    def setpoint_finish_experiment(self):
+    def setpoint_finish_experiment_rs232(self):
         """Loops over actual temperature in an cooling event until setpoint is reached"""
         rate_sp=10
         sp=18
@@ -1787,7 +2102,7 @@ class GasControl:
         except:
             sp = None
       
-    def time_event(self, time_in_seconds: int, argument: str):
+    def time_event_rs232(self, time_in_seconds: int, argument: str):
         """Waits for a specified time while printing the elapsed time on the terminal.
 
         Args:
@@ -1816,7 +2131,7 @@ class GasControl:
     ## Remote Triggering
     # 
     # The slave register can hold integer values in the range 0 to 65535
-    def drift_mantis_pid(self):    
+    def drift_mantis_pid_rs232(self):    
         self.tmp_master.write_register(6, 86.9, 1)
         self.tmp_master.write_register(8, 96)
         self.tmp_master.write_register(9, 16)
@@ -1825,7 +2140,7 @@ class GasControl:
         d=self.tmp_master.read_register(9)    
         print(f"PID for DRIFTS cell is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
    
-    def clausen_coil_local_pid(self):    
+    def clausen_coil_local_pid_rs232(self):    
         self.tmp_master.write_register(6, 987.6, 1)
         self.tmp_master.write_register(8, 96)
         self.tmp_master.write_register(9, 16)
@@ -1835,7 +2150,7 @@ class GasControl:
         print(f"PID for clausen cell with coil heating elements and LOCAL power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to LOCAL")
    
     
-    def clausen_coil_remote_pid(self):    
+    def clausen_coil_remote_pid_rs232(self):    
         self.tmp_master.write_register(6, 600)
         self.tmp_master.write_register(8, 20)
         self.tmp_master.write_register(9, 4)
@@ -1844,19 +2159,19 @@ class GasControl:
         d=self.tmp_master.read_register(9)    
         print(f"PID for clausen cell with coil heating elements and REMOTE power supply is:\nProportional band = {p}\nIntegral time = {i}\nDerivative time = {d}\nPlease switch power output to REMOTE")
   
-    def MS_ON(self):
+    def MS_ON_rs232(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
         self.tmp_master.write_register(363, 0)
         time.sleep(10)
         print('MS sequence started')
     
-    def MS_OFF(self):
+    def MS_OFF_rs232(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
         self.tmp_master.write_register(363, 1)
         time.sleep(10)
         print('MS sequence stopped')
     
-    def IR_ON(self):
+    def IR_ON_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 5)
         time.sleep(1)
@@ -1866,7 +2181,7 @@ class GasControl:
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
         print('\ndate and time =', dt_start)
     
-    def pulse_ON(self):
+    def pulse_ON_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 3)
         #sleep(1)
@@ -1876,7 +2191,7 @@ class GasControl:
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
         print('\ndate and time =', dt_start)
     
-    def pulse_OFF(self):
+    def pulse_OFF_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 0)
         #sleep(1)
@@ -1886,7 +2201,7 @@ class GasControl:
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
         print('\ndate and time =', dt_start)
     
-    def IR_STATUS(self):
+    def IR_STATUS_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         while True:
             try:
