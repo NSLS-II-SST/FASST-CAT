@@ -1672,8 +1672,8 @@ class GasControl:
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
         regs_list_1 = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
-        print(regs_list_1)
-        print(f"TC Temp = {regs_list_1} degC")
+        # print(regs_list_1)
+        # print(f"TC Temp = {regs_list_1} degC")
         self.modbustcp.close()
 
     def get_temp_prog(self):
@@ -1743,6 +1743,8 @@ class GasControl:
                 # print("Failed to read from instrument")
             except ValueError:
                 continue
+            except TypeError:
+                continue
                 # print("Instrument response is invalid")
             try:
                 result = float(temp_tc) < float(sp)
@@ -1788,6 +1790,8 @@ class GasControl:
                 # print("Failed to read from instrument")
             except ValueError:
                 continue
+            except TypeError:
+                continue
                 # print("Instrument response is invalid")
             try:
                 result = float(temp_tc) > float(sp)
@@ -1813,6 +1817,8 @@ class GasControl:
             except IOError:
                 continue
                 # print("Failed to read from instrument")
+            except TypeError:
+                continue
             except ValueError:
                 continue
                 # print("Instrument response is invalid")
@@ -2235,6 +2241,5 @@ if __name__ == "__main__":
     gc.flowsms_setpoints()
     gc.flowsms_status()
 
-    gc.get_pv_loop1()
 
 
