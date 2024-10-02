@@ -30,8 +30,17 @@ HID_MFC = "COM1"
 BAUD_MFC = 38400
 HID_TMP = "COM2"
 SUB_ADD_TMP = 2
-HOST_EURO = "10.68.42.3"
+HOST_EURO = "10.68.42.63"
 PORT_EURO = 502
+
+
+# ███████╗ █████╗ ███████╗███████╗████████╗ ██████╗ █████╗ ████████╗
+# ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝
+# █████╗  ███████║███████╗███████╗   ██║   ██║     ███████║   ██║   
+# ██╔══╝  ██╔══██║╚════██║╚════██║   ██║   ██║     ██╔══██║   ██║   
+# ██║     ██║  ██║███████║███████║   ██║   ╚██████╗██║  ██║   ██║   
+# ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝    ╚═════╝╚═╝  ╚═╝   ╚═╝   
+                                                                  
 
 class GasControl:
     def __init__(
@@ -206,6 +215,14 @@ class GasControl:
         # Print the output
         print(output)
 
+
+    # ██╗   ██╗ █████╗ ██╗    ██╗   ██╗███████╗███████╗
+    # ██║   ██║██╔══██╗██║    ██║   ██║██╔════╝██╔════╝
+    # ██║   ██║███████║██║    ██║   ██║█████╗  ███████╗
+    # ╚██╗ ██╔╝██╔══██║██║    ╚██╗ ██╔╝██╔══╝  ╚════██║
+    #  ╚████╔╝ ██║  ██║███████╗╚████╔╝ ███████╗███████║
+    #   ╚═══╝  ╚═╝  ╚═╝╚══════╝ ╚═══╝  ╚══════╝╚══════╝
+   
     def serial_connection_valves(self):
         """Function that establishes the serial connection with the valve controller
         It will connect to the comport specified in self.control_comport
@@ -475,117 +492,6 @@ class GasControl:
             print("Valves operation mode: continuous mode Gas Line B")
             print("Gas Line B -> reactor ... Gas Line A -> loops -> waste")
 
-    # def modulation(
-    #     self,
-    #     pulses=10,
-    #     time1=10,
-    #     time2=10,
-    #     start_gas="pulse",
-    #     end_gas="pulse",
-    #     monitoring_interval=0.01,
-    #     save_log="./log.txt",
-    # ):
-    #     """Function that modulates the valves in the reaction mode selection module
-    #     between the cont_mode_A and cont_mode_B
-
-    #     Args:
-    #         pulses (int): Number of pulses to be performed [default: 10]
-    #         time1 (int): Time in seconds for the valve to be in Gas Line B mode [default: 10]
-    #         time2 (int): Time in seconds for the valve to be in Gas Line A mode [default: 10]
-    #         start_gas (str): Gas to be used as carrier gas in the pulses line at the beginning of the modulation [default: "pulse"]
-    #         end_gas (str): Gas to be used as carrier gas in the pulses line at the end of the modulation [default: "pulse"]
-    #         monitoring_interval (float): Time in seconds between each valve status check [default: 0.01]
-    #         save_log (str): Path to the file where the valve status will be saved [default: "log.txt"]
-    #     """
-    #     if save_log is not None:
-    #         os.makedirs(os.path.dirname(save_log), exist_ok=True)
-
-    #         if not os.path.isfile(save_log):
-    #             with open(save_log, "w") as f:
-    #                 f.write("Time, Valve1\n")
-
-    #     start_time = time.time()
-    #     end_time = start_time + pulses * (time1 + time2)
-
-    #     if start_gas == "pulse":
-    #         valve_fun1 = self.pulses_mode
-    #         valve_fun2 = self.cont_mode_dry
-    #     else:
-    #         valve_fun1 = self.cont_mode_dry
-    #         valve_fun2 = self.pulses_mode
-
-    #     self.get_status()
-    #     if start_gas in VALVE_POSITION.keys():
-    #         start_gas_id = VALVE_POSITION[start_gas]
-    #     else:
-    #         raise ValueError(f"start_gas must be in {VALVE_POSITION.keys()}")
-
-    #     if end_gas in VALVE_POSITION.keys():
-    #         end_gas_id = VALVE_POSITION[end_gas]
-    #     else:
-    #         raise ValueError(f"end_gas must be in {VALVE_POSITION.keys()}")
-
-    #     if VALVE_POSITION[start_gas] == 1:
-    #         valve_fun1 = self.pulses_mode
-    #         valve_fun2 = self.cont_mode_dry
-    #     else:
-    #         valve_fun1 = self.cont_mode_dry
-    #         valve_fun2 = self.pulses_mode
-
-    #     if VALVE_POSITION[end_gas] == 0:
-    #         valve_end_fun = self.pulses_mode
-    #     else:
-    #         valve_end_fun = self.cont_mode_dry
-
-    #     while True:
-    #         current_time = time.time()
-    #         accumulated_time = current_time - start_time
-
-    #         current_pulse = int(accumulated_time / (time1 + time2))
-    #         current_time_in_pulse = accumulated_time - current_pulse * (time1 + time2)
-
-    #         if current_time_in_pulse < time1:
-    #             if VALVE_POSITION[self.status[0]] == start_gas_id:
-    #                 time.sleep(monitoring_interval)
-    #                 continue
-    #             else:
-    #                 self.get_status()
-    #                 if VALVE_POSITION[self.status[0]] == start_gas_id:
-    #                     time.sleep(monitoring_interval)
-    #                     continue
-    #                 else:
-    #                     valve_fun1(verbose=False)
-    #                     if save_log is not None:
-    #                         self.get_status()
-    #                         with open(save_log, "a") as f:
-    #                             f.write(
-    #                                 f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
-    #                             )
-    #         else:
-    #             if VALVE_POSITION[self.status[0]] != start_gas_id:
-    #                 time.sleep(monitoring_interval)
-    #                 continue
-    #             else:
-    #                 self.get_status()
-    #                 if VALVE_POSITION[self.status[0]] != start_gas_id:
-    #                     time.sleep(monitoring_interval)
-    #                     continue
-    #                 else:
-    #                     valve_fun2(verbose=False)
-    #                     if save_log is not None:
-    #                         self.get_status()
-    #                         with open(save_log, "a") as f:
-    #                             f.write(
-    #                                 f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
-    #                             )
-
-    #         time.sleep(monitoring_interval)
-
-    #         if current_time > end_time:
-    #             break
-
-    #     valve_end_fun()
-
     def pulses_loop_mode_A(self, verbose=True):
         """Function that selects the position of the valves in the reaction mode selection
         module to the pulses loop mode
@@ -681,6 +587,16 @@ class GasControl:
             print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
             time.sleep(float_time_bp) # Conversion of seconds to miliseconds
         print('Pulses have finished') # End of the pulses message
+
+        
+    # ███████╗██╗      ██████╗ ██╗    ██╗      ███████╗███╗   ███╗███████╗
+    # ██╔════╝██║     ██╔═══██╗██║    ██║      ██╔════╝████╗ ████║██╔════╝
+    # █████╗  ██║     ██║   ██║██║ █╗ ██║█████╗███████╗██╔████╔██║███████╗
+    # ██╔══╝  ██║     ██║   ██║██║███╗██║╚════╝╚════██║██║╚██╔╝██║╚════██║
+    # ██║     ███████╗╚██████╔╝╚███╔███╔╝      ███████║██║ ╚═╝ ██║███████║
+    # ╚═╝     ╚══════╝ ╚═════╝  ╚══╝╚══╝       ╚══════╝╚═╝     ╚═╝╚══════╝
+                                                                        
+
 
     def define_flowsms(self):
         """Function to define the parameters of the Flow-SMS mass flow controllers
@@ -1659,14 +1575,24 @@ class GasControl:
         p_b_dict = values_p_b[0]
         p_b = format(p_b_dict.get("data"), ".2f")
         print(f"P_A = {p_a} psia\nP_B = {p_b} psia\n")
-
+        return p_a, p_b
+    
+    
+    # ███████╗██╗   ██╗██████╗  ██████╗ ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗
+    # ██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██╗████╗ ████║
+    # █████╗  ██║   ██║██████╔╝██║   ██║   ██║   ███████║█████╗  ██████╔╝██╔████╔██║
+    # ██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║
+    # ███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║
+    # ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
+                                                                                
     def get_temp_wsp(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
         regs_list_1 = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
-        print(regs_list_1)
-        print(f"WSP Temp = {regs_list_1} degC")
+        # print(regs_list_1)
+        # print(f"WSP Temp = {regs_list_1} degC")
         self.modbustcp.close()
+        return regs_list_1
 
     def get_temp_tc(self):
         """Return the process value (PV) for loop1."""
@@ -1675,151 +1601,206 @@ class GasControl:
         # print(regs_list_1)
         # print(f"TC Temp = {regs_list_1} degC")
         self.modbustcp.close()
+        return regs_list_1
 
     def get_temp_prog(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
         regs_list_1 = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
-        print(regs_list_1)
-        print(f"Prog Temp = {regs_list_1} degC")
+        # print(regs_list_1)
+        # print(f"Prog Temp = {regs_list_1} degC")
         self.modbustcp.close()
+        return regs_list_1
 
     def get_pw_prog(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
         regs_list_1 = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
-        print(regs_list_1)
-        print(f"Prog Power = {regs_list_1}%")
+        # print(regs_list_1)
+        # print(f"Prog Power = {regs_list_1}%")
         self.modbustcp.close()
+        return regs_list_1
 
     def get_heating_rate(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
         regs_list_1 = format(self.modbustcp.read_holding_registers(35)[0]*0.1, ".1f")
-        print(regs_list_1)
-        print(f"Heating rate = {regs_list_1} degC/min")
+        # print(regs_list_1)
+        # print(f"Heating rate = {regs_list_1} degC/min")
         self.modbustcp.close()
+        return regs_list_1
 
     def write_wsp(self, sp):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        sp = int(sp)*10
-        self.modbustcp.write_single_register(2, sp)
-        self.get_temp_wsp()
+        try:
+            sp = int(sp * 10)
+            if not self.retry_write(2, sp, "setpoint"):
+                sp = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            sp = None
         self.modbustcp.close()
 
     def write_heating_rate(self, rate):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        rate = int(rate)*10
-        self.modbustcp.write_single_register(35, rate)
-        self.get_heating_rate()
+        try:
+            rate = int(rate * 10)
+            if not self.retry_write(35, rate, "rate"):
+                rate = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            rate = None
         self.modbustcp.close()
 
-    def heating_event(self, rate_sp = None, sp = None):
-        """Loops over actual temperature in an heating event until setpoint is reached"""
+
+    def retry_write(self,register, value, description, max_retries=5, retry_delay=1):
+        """Tries writing to the Modbus register with retries"""
+        retries = 0
+        while retries < max_retries:
+            write_response = self.modbustcp.write_single_register(register, value)
+            if write_response is not None:
+                # print(f"Successfully wrote {description} to register {register}")
+                return True
+            else:
+                retries += 1
+                print(f"Failed to write {description} to register {register}, retrying ({retries}/{max_retries})...")
+                time.sleep(retry_delay)
+        print(f"Failed to write {description} to register {register} after {max_retries} attempts")
+        return False
+
+    def heating_event(self, rate_sp=None, sp=None, max_duration=600):
+        """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
-        print('Starting heating event:')
+
+        # Write heating rate to register 35
         try:
-            print('Heating rate: {} C/min'.format(rate_sp))
-            rate_sp = int(rate_sp*10)
-            self.modbustcp.write_single_register(35, rate_sp)
-        except:
-            rate_sp = None      
+            rate_sp_value = int(rate_sp * 10)
+            if not self.retry_write(35, rate_sp_value, "heating rate"):
+                rate_sp = None
+        except Exception as e:
+            print(f"Error writing heating rate: {e}")
+            rate_sp = None
+
+        # Write setpoint to register 2
         try:
-            print('Setpoint: {} C'.format(sp))
-            sp = int(sp*10)
-            self.modbustcp.write_single_register(2, sp)
-        except:
-            sp = None      
+            sp_value = int(sp * 10)
+            if not self.retry_write(2, sp_value, "setpoint"):
+                sp = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            sp = None
+
+        # Loop until setpoint is reached or max duration is exceeded
+        start_time = time.time()
         while True:
             try:
-                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
-                temp_programmer = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
-                power_out = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
-                sp = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
-            except IOError:
-                continue
-                # print("Failed to read from instrument")
-            except ValueError:
-                continue
-            except TypeError:
-                continue
-                # print("Instrument response is invalid")
-            try:
-                result = float(temp_tc) < float(sp)
-                if result == True:
-                    temp_tc = float(temp_tc)
-                    self.pressure_report()
-                    print("-----------------------------------------------------------------------------------------------------\n",
-                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
-                    "-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
-                    time.sleep(1)
-                else:
-                    print('{} C setpoint reached!'.format(sp))
-                    break
-            except TypeError:
-                continue
+                # Read only the necessary registers (1 for temp_tc, 5 for temp_programmer, 85 for power_out, and 2 for sp)
+                registers = self.modbustcp.read_holding_registers(0,86)  # Read only needed registers (1-6)
+                temp_tc = registers[1] * 0.1  # Reactor temperature (register 1)
+                temp_programmer = registers[5] * 0.1  # Programmer temperature (register 5)
+                power_out = registers[85] * 0.1  # Power output (register 85)
+                current_sp = registers[2] * 0.1  # Setpoint (register 2)
+                
+            except (IOError, ValueError, TypeError):
+                continue  # You can log these for debugging purposes if necessary
+            
+            # Compare temperature with setpoint
+            if temp_tc >= current_sp:
+                print(f'{current_sp} C setpoint reached!')
+                break
+
+            # Log heating progress
+            self.pressure_report()
+
+            # Overprint previous output for a clean display in terminal
+            # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            # print("\033[K", end="")  # Clear the current line
+            print("-----------------------------------------------------------------------------------------------------\n",
+                f"Setpoint Temp: {format(current_sp, ".1f")} C | Programmer Temp: {format(temp_programmer, ".1f")} C | Reactor Temp: {format(temp_tc, ".1f")} C | Power out: {format(power_out, ".1f")}%\n",
+                "-----------------------------------------------------------------------------------------------------")
+            print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            print("\033[K", end="")  # Clear the current line
+            
+            # Calculate elapsed time and check against max duration
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_duration:
+                print(f"Max duration of {max_duration} seconds exceeded. Ending heating event.")
+                break
+            
+            time.sleep(1)  # Sleep for 1 second (can be adjusted dynamically if desired)
+
         self.modbustcp.close()
 
-    def cooling_event(self, rate_sp = None, sp = None):
-        """Loops over actual temperature in an heating event until setpoint is reached"""
+    def cooling_event(self, rate_sp=None, sp=None, max_duration=600):
+        """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
-        print('Starting cooling event:')
+
+        # Write heating rate to register 35
         try:
-            print('Heating rate: {} C/min'.format(rate_sp))
-            rate_sp = int(rate_sp*10)
-            self.modbustcp.write_single_register(35, rate_sp)
-        except:
-            rate_sp = None      
+            rate_sp_value = int(rate_sp * 10)
+            if not self.retry_write(35, rate_sp_value, "heating rate"):
+                rate_sp = None
+        except Exception as e:
+            print(f"Error writing heating rate: {e}")
+            rate_sp = None
+
+        # Write setpoint to register 2
         try:
-            print('Setpoint: {} C'.format(sp))
-            sp = int(sp*10)
-            self.modbustcp.write_single_register(2, sp)
-        except:
-            sp = None      
+            sp_value = int(sp * 10)
+            if not self.retry_write(2, sp_value, "setpoint"):
+                sp = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            sp = None
+
+        # Loop until setpoint is reached or max duration is exceeded
+        start_time = time.time()
         while True:
             try:
-                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
-                temp_programmer = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
-                power_out = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
-                sp = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
-            except IOError:
-                continue
-                # print("Failed to read from instrument")
-            except ValueError:
-                continue
-            except TypeError:
-                continue
-                # print("Instrument response is invalid")
-            try:
-                result = float(temp_tc) > float(sp)
-                if result == True:
-                    temp_tc = float(temp_tc)
-                    self.pressure_report()
-                    print("-----------------------------------------------------------------------------------------------------\n",
-                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
-                    "-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="") 
-                    time.sleep(1)
-                else:
-                    print('{} C setpoint reached!'.format(sp))
-                    break
-            except TypeError:
-                continue
+                # Read only the necessary registers (1 for temp_tc, 5 for temp_programmer, 85 for power_out, and 2 for sp)
+                registers = self.modbustcp.read_holding_registers(0,86)  # Read only needed registers (1-6)
+                temp_tc = registers[1] * 0.1  # Reactor temperature (register 1)
+                temp_programmer = registers[5] * 0.1  # Programmer temperature (register 5)
+                power_out = registers[85] * 0.1  # Power output (register 85)
+                current_sp = registers[2] * 0.1  # Setpoint (register 2)
+                
+            except (IOError, ValueError, TypeError):
+                continue  # You can log these for debugging purposes if necessary
+            
+            # Compare temperature with setpoint
+            if temp_tc <= current_sp:
+                print(f'{current_sp} C setpoint reached!')
+                break
+
+            # Log heating progress
+            self.pressure_report()
+
+            # Overprint previous output for a clean display in terminal
+            # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            # print("\033[K", end="")  # Clear the current line
+            print("-----------------------------------------------------------------------------------------------------\n",
+                f"Setpoint Temp: {format(current_sp, ".1f")} C | Programmer Temp: {format(temp_programmer, ".1f")} C | Reactor Temp: {format(temp_tc, ".1f")} C | Power out: {format(power_out, ".1f")}%\n",
+                "-----------------------------------------------------------------------------------------------------")
+            print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            print("\033[K", end="")  # Clear the current line
+            
+            # Calculate elapsed time and check against max duration
+            elapsed_time = time.time() - start_time
+            if elapsed_time > max_duration:
+                print(f"Max duration of {max_duration} seconds exceeded. Ending heating event.")
+                break
+            
+            time.sleep(1)  # Sleep for 1 second (can be adjusted dynamically if desired)
+
         self.modbustcp.close()
 
     def temperature_ramping_event(self, rate_sp = None, sp = None ):
         while True:
             try:
                 temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
-            except IOError:
-                continue
-                # print("Failed to read from instrument")
-            except TypeError:
-                continue
-            except ValueError:
+            except (IOError, ValueError, TypeError):
                 continue
                 # print("Instrument response is invalid")
             try:
@@ -1837,23 +1818,29 @@ class GasControl:
 
     def setpoint_finish_experiment(self):
         """Loops over actual temperature in an cooling event until setpoint is reached"""
-        rate_sp=10
-        sp=18
-    
-        print('adjust temperature set point to 18C:')
+        rate=10
+        sp=20
+
+        self.modbustcp.open()
         try:
-            print(f"Cooling rate: {rate_sp} C/min")
-            rate_sp = int(rate_sp*10)
-            self.modbustcp.write_single_register(35, rate_sp)
-        except:
-            rate_sp = None
-    
-        try:
-            print(f"Setpoint: {sp} C")
-            sp = int(sp*10)
-            self.modbustcp.write_single_register(2, sp)
-        except:
+            sp = int(sp * 10)
+            if not self.retry_write(2, sp, "setpoint"):
+                sp = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
             sp = None
+
+        try:
+            rate = int(rate * 10)
+            if not self.retry_write(35, rate, "rate"):
+                rate = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            rate = None
+    
+        print('Adjust temperature set point to 20C:')
+        print(f"Cooling rate: {rate} C/min")
+        print(f"Setpoint: {sp} C")
 
     def time_event(self, time_in_seconds: int, argument: str):
         """Waits for a specified time while printing the elapsed time on the terminal.
@@ -1865,16 +1852,17 @@ class GasControl:
         while True:
             elapsed_time = time.time() - start_time
             if elapsed_time < time_in_seconds:
-                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+                temp_tc = self.modbustcp.read_holding_registers(1)[0]*0.1
                 self.pressure_report()            
                 print("-----------------------------------------------------------------------------------------------------\n",
-                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc} degC\n",
+                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {format(temp_tc, ".1f")} degC\n",
                 "-----------------------------------------------------------------------------------------------------")
-                print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
+                print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print("\033[K", end="")  # Clear the current line
                 time.sleep(1)
             else:
                 print("-----------------------------------------------------------------------------------------------------\n",
-                f"Wait time of {time_in_seconds} seconds at {temp_tc} degC completed.",
+                f"Wait time of {time_in_seconds} seconds at {format(temp_tc, ".1f")} degC completed.",
                 "-------------------------------------------------------------------\n",
                 "-----------------------------------------------------------------------------------------------------", end="\r")
                 break
@@ -1911,15 +1899,29 @@ class GasControl:
   
     def MS_ON(self):
         """Sends a logic value (0 or 1) to perform remote MS digital triggering to RlyAA"""
-        self.modbustcp.write_single_register(363,0)
-        time.sleep(1)
+        self.modbustcp.open()
+        try:
+            ms_on = 1
+            if not self.retry_write(363, ms_on, "setpoint"):
+                ms_on = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            ms_on = None
         print('MS recipe started')
+        self.modbustcp.close()
     
     def MS_OFF(self):
         """Sends a logic value (0 or 1) to perform remote MS digital triggering to RlyAA"""
-        self.modbustcp.write_single_register(363,1)
-        time.sleep(1)
-        print('MS recipe stopped')
+        self.modbustcp.open()
+        try:
+            ms_on = 0
+            if not self.retry_write(363, ms_on, "setpoint"):
+                ms_on = None
+        except Exception as e:
+            print(f"Error writing setpoint: {e}")
+            ms_on = None
+        print('MS recipe finished')
+        self.modbustcp.close()
     
     def IR_ON(self):
         """Sends 5V pulse to perform remote IR triggering to logic A"""    
@@ -1973,10 +1975,6 @@ class GasControl:
                 time.sleep(0.1)
                 continue
     
-    def get_pv_loop1_rs232(self):
-        """Return the process value (PV) for loop1."""
-        pv = self.tmp_master.read_register(2, 1)
-        print("PV = {} degC".format(pv))
     
     def heating_event_rs232(self, rate_sp = None, sp = None):
         """Loops over actual temperature in an heating event until setpoint is reached"""
@@ -2008,11 +2006,12 @@ class GasControl:
                 result = float(temp_tc) < float(sp)
                 if result == True:
                     temp_tc = float(temp_tc)
+                    sp = float(sp)
                     self.pressure_report()
                     print("-----------------------------------------------------------------------------------------------------\n",
-                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}%\n",
+                    f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---\n",
                     "-----------------------------------------------------------------------------------------------------")
-                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")
+                    print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")                
                     time.sleep(1)
                 else:
                     print('{} C setpoint reached!'.format(sp))
@@ -2068,7 +2067,7 @@ class GasControl:
     def temperature_ramping_event_rs232(self,rate_sp = None, sp = None ):
         while True:
             try:
-                temp_pv = self.tmp_master.read_register(289, 1) 
+                temp_pv = self.tmp_master.read_register(1, 1) 
             except IOError:
                 continue
                 # print("Failed to read from instrument")
@@ -2167,13 +2166,13 @@ class GasControl:
   
     def MS_ON_rs232(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
-        self.tmp_master.write_register(363, 0)
+        self.tmp_master.write_register(363, 1)
         time.sleep(10)
         print('MS sequence started')
     
     def MS_OFF_rs232(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
-        self.tmp_master.write_register(363, 1)
+        self.tmp_master.write_register(363, 0)
         time.sleep(10)
         print('MS sequence stopped')
     
@@ -2230,16 +2229,14 @@ if __name__ == "__main__":
     gc.cont_mode_A()
     gc.display_valve_positions()
 
-    gc.flowsms_setpoints(
-        Ar_A=15,
-        Ar_B=15,
-    )
+    # gc.flowsms_setpoints(
+    #     Ar_A=15,
+    #     Ar_B=15,
+    # )
 
-    gc.carrier_Ar_B()
+    # gc.carrier_Ar_B()
 
     gc.flowsms_status()
-    gc.flowsms_setpoints()
-    gc.flowsms_status()
-
-
-
+    gc.get_temp_prog()
+    # gc.flowsms_setpoints()
+    # gc.flowsms_status()
