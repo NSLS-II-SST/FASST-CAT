@@ -3,6 +3,8 @@ import threading
 import time
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+from matplotlib.animation import FuncAnimation
 
 class HidenHPR20Interface:
     def __init__(self, host='localhost', port=5026):
@@ -13,6 +15,9 @@ class HidenHPR20Interface:
         self.file_path = None
         self.x_data = []
         self.y_data = []
+        self.fig, self.ax = plt.subplots()
+        self.full_dataset = pd.DataFrame()
+        self.ani = None
         plt.ion()
 
     # Establish a socket connection
@@ -21,6 +26,8 @@ class HidenHPR20Interface:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.host, self.port))
             print("Socket connected.")
+            # Send a dummy status check to clear any initial data
+            self.send_command('-xStatus')  # Ignore the first response
         except Exception as e:
             print(f"Failed to connect: {e}")
             self.sock = None
@@ -29,25 +36,141 @@ class HidenHPR20Interface:
     def send_command(self, command):
         try:
             self.sock.sendall(command.encode() + b'\n')
-            response = self.sock.recv(1024).decode().strip()
-            return response
+            response = self.sock.recv(1024)
+            # print(f"Raw Response: {response}")  # Print raw response for debugging
+            return response.decode().strip()
         except Exception as e:
             print(f"Failed to send command: {e}")
             return None
 
+    def parse_data(self, data):
+        print("Raw Data Received:")
+        print(data)
+
+        # Split the received data into lines
+        lines = data.strip().split('\n')
+        parsed_data = []
+
+        # Iterate through the lines
+        for line in lines:
+            # Ignore the first line if it only contains '0'
+            if line.strip() == '0':
+                print("Ignoring first line with '0'.")
+                continue
+
+            print(f"Parsing line: {line.strip()}")
+            values = line.split()
+            print(f"Parsed values: {values}")
+
+            # Check if the number of parsed values is less than expected
+            if len(values) < 12:
+                print(f"Line skipped due to insufficient values: {line.strip()}")
+                continue  # Skip this line if it doesn't have enough values
+
+            # If line is valid, append to parsed_data
+            parsed_data.append(values)
+
+        # Convert parsed_data to a DataFrame, if there's data
+        if parsed_data:
+            df = pd.DataFrame(parsed_data, columns=[
+                'Time', 'Milliseconds', 'm/z=2', 'm/z=12', 'm/z=14', 
+                'm/z=15', 'm/z=18', 'm/z=20', 'm/z=28', 'm/z=32', 
+                'm/z=44', 'TempC'
+            ])
+
+            # Combine 'Time' and 'Milliseconds' to create a more precise timestamp
+            df['Time'] = pd.to_datetime(df['Time'], format='%H:%M:%S') + pd.to_timedelta(df['Milliseconds'].astype(int), unit='ms')
+            return df
+        else:
+            print("No data parsed.")
+            return pd.DataFrame()  # Return an empty DataFrame if no data
+
+
+    def live_data_plot(self):
+        """Fetch, parse, and plot data every second."""
+        
+        def update(frame):
+            # Fetch new data
+            data = self.send_command('-lData -v1 -d20')
+            if data:
+                df = self.parse_data(data)
+
+                if not df.empty:
+                    # Accumulate new data
+                    self.full_dataset = pd.concat([self.full_dataset, df], ignore_index=True)
+
+                    # Limit to last 60 seconds or however long you'd prefer
+                    if len(self.full_dataset) > 0:
+                        max_time = self.full_dataset['Time'].max()
+                        time_window = self.full_dataset['Time'] > (max_time - pd.Timedelta(seconds=60))
+                        self.full_dataset = self.full_dataset[time_window]
+
+                    # Clear the current plot
+                    self.ax.clear()
+
+                    # Plot all accumulated data within the time window
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=2'], label='m/z=2')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=12'], label='m/z=12')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=14'], label='m/z=14')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=15'], label='m/z=15')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=18'], label='m/z=18')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=20'], label='m/z=20')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=28'], label='m/z=28')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=32'], label='m/z=32')
+                    self.ax.plot(self.full_dataset['Time'], self.full_dataset['m/z=44'], label='m/z=44')
+
+                    # Set axis labels and title
+                    self.ax.set_xlabel('Time')
+                    self.ax.set_ylabel('Pressure')
+                    self.ax.set_title('Real-time Data Plot')
+
+                    # Check if time range is valid before setting x-limits
+                    if self.full_dataset['Time'].min() != self.full_dataset['Time'].max():
+                        self.ax.set_xlim(self.full_dataset['Time'].min(), self.full_dataset['Time'].max())
+                    else:
+                        # If there's no range, set a small default time range
+                        self.ax.set_xlim(self.full_dataset['Time'].min(), self.full_dataset['Time'].min() + pd.Timedelta(seconds=1))
+
+                    # Set a consistent y-limit for pressure values
+                    self.ax.set_ylim(0, 1e-5)  # Example range, adjust based on expected data range
+
+                    # Display the legend
+                    self.ax.legend()
+
+        # Create the animation with a 1-second interval
+        self.ani = FuncAnimation(self.fig, update, interval=1000, cache_frame_data=False)
+
+        # Show the plot
+        plt.show()
+
     # Open the file and run the experiment
-    def open_file_and_run(self, file_path):
+    def open_file(self, file_path):
         self.file_path = file_path
         if self.sock:
             response = self.send_command(f'-f "{self.file_path}" -d20')
             print(f"File Open Response: {response}")
             if response == '1':  # File opened successfully
-                response = self.send_command('-xGo -odt -d20')
-                print(f"Run File Response: {response}")
+                # response = self.send_command('-xGo -odt -d20')
+                response = 'Open'
+                print(f"File {response}")
             else:
                 print("Failed to open file.")
         else:
             print("Socket not connected.")
+
+    # # Open the file and run the experiment
+    # def open_file_and_run(self, file_path):
+    #     self.file_path = file_path
+    #     if self.sock:
+    #         response = self.send_command(f'-f "{self.file_path}" -d20')
+    #         print(f"File Open Response: {response}")
+    #         if response == '1':  # File opened successfully
+    #             response = self.send_command('-xGo -odt -d20')
+    #             print(f"Run File Response: {response}")
+    #         else:
+    #             print("Failed to open file.")
+    #     else:
+    #         print("Socket not connected.")
 
     # Close the experiment file
     def close_file(self):
@@ -79,7 +202,8 @@ class HidenHPR20Interface:
             status_sock.close()
 
     # Real-time data retrieval in a separate thread
-    def data_thread(self):
+    def data_thread(self, file_path):
+        self.file_path = file_path
         self.data_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.data_sock.connect((self.host, self.port))
@@ -166,7 +290,7 @@ if __name__ == "__main__":
     hiden_interface.create_socket_connection()
 
     # Open the file and run the experiment
-    hiden_interface.open_file_and_run(r'C:\Data Files\Hiden Analytical\MASsoft11\SocketTemplate\MID-Ar-He-Trend.exp')
+    hiden_interface.open_file_and_run(r'C:\Users\jmoncadav\OneDrive - Brookhaven National Laboratory\Documents\Hiden Analytical\MASsoft\11\postbaking_test1.exp')
 
     # Start retrieving data in real-time
     hiden_interface.start_data_thread()

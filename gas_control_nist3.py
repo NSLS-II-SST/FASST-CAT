@@ -1026,14 +1026,14 @@ class GasControl:
         time.sleep(delay)
 
         # Parameters to be read from the Flow-SMS mass flow controllers        
-        params_h2_d2_a = self.generate_params(self.gas_ID["H2_D2_A"])
-        params_h2_d2_b = self.generate_params(self.gas_ID["H2_D2_B"])
+        params_h2_d2_a = self.generate_params(self.gas_ID["H2_A"])
+        params_h2_d2_b = self.generate_params(self.gas_ID["H2_B"])
         params_o2_a = self.generate_params(self.gas_ID["O2_A"])
         params_o2_b = self.generate_params(self.gas_ID["O2_B"])
-        params_hc_a = self.generate_params(self.gas_ID["HC_A"])
-        params_hc_b = self.generate_params(self.gas_ID["HC_B"])
-        params_co_co2_a = self.generate_params(self.gas_ID["CO_A"])
-        params_co_co2_b = self.generate_params(self.gas_ID["CO_B"])
+        params_hc_a = self.generate_params(self.gas_ID["CH4_A"])
+        params_hc_b = self.generate_params(self.gas_ID["CH4_B"])
+        params_co_co2_a = self.generate_params(self.gas_ID["CO_AH"])
+        params_co_co2_b = self.generate_params(self.gas_ID["CO_BH"])
         params_carrier_a = self.generate_params(self.gas_ID["He_A"])
         params_carrier_b = self.generate_params(self.gas_ID["He_B"])
         params_p_a = [{"node": 3, "proc_nr": 33, "parm_nr": 0, "parm_type": propar.PP_TYPE_FLOAT}]
