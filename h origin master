@@ -1,0 +1,77 @@
+[33mcommit 65e6f3d17b325c0258739c67e641f803e9e1c832[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Mon Jul 15 14:03:08 2024 -0400
+
+    Program to control the FASSTCAT
+
+[33mcommit 2edf13077b53fff3cf5291f20bd21172e1db9009[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Fri May 17 15:06:30 2024 -0400
+
+    minor updates
+
+[33mcommit 26d05bf7e5b480bf458334ebfa60de05d3883438[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Fri May 17 14:57:06 2024 -0400
+
+    Debugged and tested version
+
+[33mcommit 8e29c887464853a9810db7b689542bc7722b53be[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Fri May 17 14:23:01 2024 -0400
+
+    New comms file for test purposes
+
+[33mcommit 762237a91174d80e25474f5d3871e329fad9bc3a[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Thu May 2 14:09:23 2024 -0400
+
+    Updated dummy serial port for MFCs
+
+[33mcommit 28da0d69e87de22062aaf6adf2a7dcbcc2379cb2[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Tue Apr 30 14:29:38 2024 -0400
+
+    Chemistry cart python script
+
+[33mcommit 1b420e5145e0acc467afb3eae156d1b95cc953b3[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Wed Apr 24 09:04:14 2024 -0400
+
+    Temperature control and remote triggering
+
+[33mcommit 21791f75b0b7624f0d5c8b5ac6edf93e6da4b449[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Wed Apr 24 09:00:53 2024 -0400
+
+    Latest update tested with MFCs and valves
+
+[33mcommit d7228525db3ebbcb927559a168ae3273b3fc37e7[m
+Author: Jorge Moncada Vivas <moncadaja@gmail.com>
+Date:   Mon Feb 12 16:16:33 2024 -0500
+
+    back to original
+
+[33mcommit c85e9fe108ab983936ee53fdd4a1d80fad13026e[m
+Author: Jorge Moncada Vivas <moncadaja@gmail.com>
+Date:   Fri Feb 9 14:47:36 2024 -0500
+
+    test commit
+
+[33mcommit e16bbbca9d319ad318e5e41ecc921aa322387130[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Thu Feb 8 15:59:59 2024 -0500
+
+    Second version
+
+[33mcommit bdbe135d00e8151b07594a398d8c08b7d6cc79a4[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Thu Feb 8 15:55:43 2024 -0500
+
+    First uploaded version
+
+[33mcommit d00ee60ff728214e70c5edf22c6f6dfa0ba6738b[m
+Author: Jorge Moncada <90668780+moncadaja@users.noreply.github.com>
+Date:   Thu Feb 8 15:41:12 2024 -0500
+
+    Initial commit

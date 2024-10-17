@@ -17,11 +17,12 @@ import propar
 
 # The HID for the valve 3. This is should ideally be a specified in a different file.
 # HID_VALVE = "USB VID:PID=067B:2303 SER= LOCATION=1-11" #RS232
-HID_VALVE = "USB VID:PID=0403:6001 SER=B001U9OCA" #RS485
-HID_MFC = "COM0COM\PORT\CNCA1"
+HID_VALVE = "COM3" #RS485
+HID_MFC = "COM4"
 
-# This is a dictionary that maps the valve position to an integer.
+# This is a dictionary that maps the valve position and ID to an integer.
 VALVE_POSITION = {"A": 0, "B": 1, "Unknown": 1, "pulse": 0, "cont": 1, "mix": 1}
+VALVE_ID = {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8, "I": 9}
 
 
 class GasControl:
@@ -126,52 +127,10 @@ class GasControl:
                 "{}: {} [{}]".format(comport.device, comport.description, comport.hwid)
             )
 
-    def get_status(self, valve: [int, list[int]] = 1):
-        """Get the status of the valve
-        The status is stored in self.status
-        The status can be "A", "B" or "Unknown"
-
-        Args:
-            valve (int, list[int]): Valve number or list of valve numbers [default: 1]
-        """
-        if self.ser is None:
-            self.serial_connection_valves()
-
-        if isinstance(valve, list):
-            for val in valve:
-                if (val < 1) or (val > len(self.status)):
-                    pass
-                self.ser.write(bytes("{}CP\r".format(val), encoding="ascii"))
-                status: str = str(self.ser.read_until(b"\r").decode())
-                valve_position: str = status.split("\r")[0].split(" ")[-1].split("'")[0]
-
-                if valve_position == "A":
-                    self.status[val - 1] = "A"
-                elif valve_position == "B":
-                    self.status[val - 1] = "B"
-                else:
-                    self.status[val - 1] = "Unknown"
-                print(f"Valve {val}: {self.status[val-1]}")
-        else:
-            if (valve < 1) or (valve > len(self.status)):
-                pass
-            self.ser.write(bytes("{}CP\r".format(valve), encoding="ascii"))
-            status: str = str(self.ser.read_until(b"\r").decode())
-            valve_position: str = status.split("\r")[0].split(" ")[-1]
-
-            if valve_position == '"A"':
-                self.status[valve - 1] = "A"
-            elif valve_position == '"B"':
-                self.status[valve - 1] = "B"
-            else:
-                self.status[valve - 1] = "Unknown"
-            print(f"Valve {valve}: {self.status[valve-1]}")
-
     def serial_connection_valves(self):
         """Function that establishes the serial connection with the valve controller
         It will connect to the comport specified in self.control_comport
         """
-
         self.ser = serial.Serial()
         self.ser.baudrate = 9600
         self.ser.port = self.control_comport
@@ -180,12 +139,12 @@ class GasControl:
         bytesize = serial.EIGHTBITS
 
         if self.ser.isOpen() == False:
-            self.ser.timeout = 10
+            self.ser.timeout = 0.5
             self.ser.open()
-
         else:
             print("The Port is closed: " + self.ser.portstr)
 
+<<<<<<< HEAD
     def carrier_He_mix(self):
         """Fuction that selects He as carrier gas for the mixing line"""
         self.ser.write(b'/GCW\r')
@@ -200,277 +159,427 @@ class GasControl:
         else:
             position_is_A = 'Unknown'
         print("Feeding He to mixing line")
+=======
+    def get_valve_position(self, valve):
+        self.ser.write('/{}CP\r'.format(valve).encode())
+        current_position = self.ser.readline().decode('utf-8').strip()
+        valve_no = current_position[1]
+        position = current_position[-2]
+        if position == 'A':
+            return valve_no, 'OFF'
+        elif position == 'B':
+            return valve_no, 'ON'
+        else:
+            return valve_no, 'Unknown'
+        
+    def display_valve_positions(self, valve=None):
+        if valve is not None:
+            valve_no, position = self.get_valve_position(valve)
+            print('Valve "{}" position is {}'.format(valve_no, position))
+        else:
+            valves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+            positions = [self.get_valve_position(valve) for valve in valves]
+            for valve_no, position in positions:
+                print('Valve "{}" position is {}'.format(valve_no, position))
+>>>>>>> 0ca7ae02ff2bc16d8fe76b6bcc8df453cf84052d
 
-    def carrier_Ar_mix(self):
-        """Fuction that selects Ar as carrier gas for the mixing line"""
-        self.ser.write(b"5CC\r")
-        print("Feeding Ar to mixing line")
+    def move_valve_to_position(self, valve, position):
+        if position == 'ON':
+            position_real = 'B'
+            command = 'CC'
+        elif position == 'OFF':
+            position_real = 'A'
+            command = 'CW'
+        else:
+            print('Invalid position specified.')
+            return        
+        self.ser.write('/{}{}\r'.format(valve, command).encode())
+        time.sleep(0.3)
+        self.ser.write('/{}CP\r'.format(valve).encode())
+        new_position = self.ser.readline().decode('utf-8').strip()[-2]
+        if new_position != position_real:
+            self.ser.write('/{}{}\r'.format(valve, command).encode())
+        else:
+            # print('Valve "{}" successfully moved to position {}'.format(valve, position))
+            pass
+    
+    def carrier_He_A(self):
+        """Fuction that selects He as carrier gas for the Gas Line A"""
+        self.move_valve_to_position('G', 'OFF')
+        # self.ser.write(b'/GCW\r')
+        print("Feeding He to Gas Line A")
 
-    def carrier_He_pulses(self):
-        """Fuction that selects He as carrier gas for the pulses line"""
-        self.ser.write(b"4CC\r")
-        print("Feeding He to pulses line")
+    def carrier_Ar_A(self):
+        """Fuction that selects Ar as carrier gas for Gas Line A"""
+        self.move_valve_to_position('G', 'ON')
+        # self.ser.write(b"/GCC\r")
+        print("Feeding Ar to Gas Line A")
 
-    def carrier_Ar_pulses(self):
-        """Function that selects Ar as carrier gas for the pulses line"""
-        self.ser.write(b"4CW\r")
-        print("Feeding Ar to pulses line")
+    def carrier_He_B(self):
+        """Fuction that selects He as carrier gas for Gas Line B"""
+        self.move_valve_to_position('F', 'ON')
+        # self.ser.write(b"/FCC\r")
+        print("Feeding He to Gas Line B")
 
-    def feed_16O2(self):
-        """Fuction that selects 16O2 as oxygen gas source for the mixing line"""
-        self.ser.write(b"6CW\r")
-        print("Feeding 16O2")
+    def carrier_Ar_B(self):
+        """Function that selects Ar as carrier gas for Gas Line B"""
+        self.move_valve_to_position('F', 'OFF')
+        # self.ser.write(b"/FCW\r")
+        print("Feeding Ar to Gas Line B")
 
-    def feed_18O2(self):
-        """Fuction that selects 18O2 as oxygen gas source for the mixing line"""
-        self.ser.write(b"6CC\r")
-        print("Feeding 18O2")
+    def feed_CO2_AB(self):
+        """Fuction that selects carbon monoxide as gas source for Gas Line A and B"""
+        self.move_valve_to_position('D', 'ON')
+        # self.ser.write(b"/DCC\r")
+        print("Feeding CO2 to Gas Line A and B")
 
-    def feed_12CO2(self):
-        """Fuction that selects 12CO2 as carbon dioxide gas source for the mixing line"""
-        self.ser.write(b"9CW\r")
-        print("Feeding 12CO2")
+    def feed_CO_AB(self):
+        """Fuction that selects carbon monoxide as gas source for Gas Line A and B"""
+        self.move_valve_to_position('D', 'OFF')
+        # self.ser.write(b"/DCW\r")
+        print("Feeding CO to Gas Line A and B")
 
-    def feed_13CO2(self):
-        """Fuction that selects 13CO2 as carbon dioxide gas source for the mixing line"""
-        self.ser.write(b"9CC\r")
-        print("Feeding 13CO2")
+    def feed_H2_A(self):
+        """Function that selects hydrogen as gas source for Gas Line A"""
+        self.move_valve_to_position('I', 'OFF')
+        # self.ser.write(b"/ICW\r")
+        print("Feeding H2 to Gas Line A")
 
-    def feed_H2(self):
-        """Function that selects H2 as hydrogen gas source for the mixing line"""
-        self.ser.write(b"7CW\r")
-        print("Feeding H2")
+    def feed_D2_A(self):
+        """Function that selects deuterium as gas source for Gas Line A"""
+        self.move_valve_to_position('I', 'ON')
+        # self.ser.write(b"/ICC\r")
+        print("Feeding D2 to Gas Line A")
 
-    def feed_D2(self):
-        """Function that selects D2 as deuterium gas source for the mixing line"""
-        self.ser.write(b"7CC\r")
-        print("Feeding D2")
+    def feed_H2_B(self):
+        """Function that selects hydrogen as gas source for Gas Line B"""
+        self.move_valve_to_position('H', 'ON')
+        # self.ser.write(b"/HCC\r")
+        print("Feeding H2 to Gas Line B")
 
-    def feed_12CH4(self):
-        """Fuction that selects 12CH4 as methane gas source for the mixing line"""
-        self.ser.write(b"8CW\r")
-        print("Feeding 12CH4")
+    def feed_D2_B(self):
+        """Function that selects deuterium as gas source for Gas Line B"""
+        self.move_valve_to_position('H', 'OFF')
+        # self.ser.write(b"/HCW\r")
+        print("Feeding D2 to Gas Line B")
 
-    def feed_13CH4(self):
-        """Function that selects 13CH4 as methane gas source for the mixing line"""
-        self.ser.write(b"8CC\r")
-        print("Feeding 13CH4")
+    def feed_CH4_AB(self):
+        """Fuction that selects methane as gas source for Gas Line A and B"""
+        self.move_valve_to_position('E', 'ON')
+        # self.ser.write(b"/ECC\r")
+        print("Feeding CH4 to Gas Line A and B")
 
-    def feed_CO(self):
+    def feed_C2H6_AB(self):
+        """Function that selects ethane as gas source for Gas Line A and B"""
+        self.move_valve_to_position('E', 'OFF')
+        # self.ser.write(b"/ECW\r")
+        print("Feeding C2H6 to Gas Line A and B")
+
+    def feed_O2_AB(self):
         """Fuction that selects CO as carbon monoxide gas source for the mixing line
         This function is not implemented in the valve control module"""
         pass
 
-    def valve1(self, position: str):
-        """Function that selects the position of Valve 1 (Reaction mode selection module)
+    def valve_C(self, position: str):
+        """Function that selects the position of Valve C (Reaction mode selection module)
 
         Args:
             position (str): Position of the valve, can be "off" or "on"
-                            "off" means that the valve is in the position mix -> reactor
-                            "on" means that the valve is in the position mix -> loop
+                            "off" means that the valve is in the position Gas Line A/B -> reactor
+                            "on" means that the valve is in the position Gas Line A/B -> gas loop
         """
-        if position == "off":
-            self.ser.write(b"1CW\r")
-            print("Mixing line valve position: off (mix -> reactor)")
-        elif position == "on":
-            self.ser.write(b"1CC\r")
-            print("Mixing line valve position: on (mix -> loop)")
+        if position == "OFF":
+            self.move_valve_to_position('C', position)
+            # self.ser.write(b"/CCW\r")
+            print("Gas Line A/B valve position: off (Gas Line A/B -> reactor)")
+        elif position == "ON":
+            self.move_valve_to_position('C', position)
+            # self.ser.write(b"/CCC\r")
+            print("Gas Line A/B valve position: on (Gas Line A/B -> loop)")
 
-    def valve2(self, position: str):
-        """Function that selects the position of Valve 2 (Reaction mode selection module)
+    def valve_B(self, position: str):
+        """Function that selects the position of Valve B (Reaction mode selection module)
 
         Args:
             position (str): Position of the valve, can be "off" or "on"
-                            "off" means that the valve is in the position mix -> reactor
-                            "on" means that the valve is in the position mix -> vapor -> reactor
+                            "off" means that the valve is in the position Gas Line A -> reactor
+                            "on" means that the valve is in the position Gas Line B -> reactor
         """
 
-        if position == "off":
-            self.ser.write(b"2CW\r")
-            print("Water vapor valve position: off (mix -> reactor)")
-        elif position == "on":
-            self.ser.write(b"2CC\r")
-            print("Water vapor valve position: on (mix -> vapor -> reactor)")
+        if position == "OFF":
+            self.move_valve_to_position('B', position)
+            # self.ser.write(b"/BCW\r")
+            print("Valve B position: off \n(Gas Line A -> reactor)\n(Gas Line B -> pulses)")
+        elif position == "ON":
+            self.move_valve_to_position('B', position)
+            # self.ser.write(b"/BCC\r")
+            print("Valve B position: off \n(Gas Line B -> reactor)\n(Gas Line A -> pulses)")
 
-    def valve3(self, position: str):
-        """Function that selects the position of Valve 3 (Reaction mode selection module)
+    def valve_A(self, position: str):
+        """Function that selects the position of Valve A (Reaction mode selection module)
 
         Args:
             position (str): Position of the valve, can be "off" or "on"
-                            "off" means that the valve is in the position mix -> reactor
-                            "on" means that the valve is in the position mix -> vapor -> reactor
+                            "off" means that the valve is in the loop 1 -> reactor, loop 2 -> vent
+                            "on" means that the valve is in the loop 2 -> reactor, loop 1 -> vent
         """
-        if position == "off":
-            self.ser.write(b"3CW\r")
+        if position == "OFF":
+            self.move_valve_to_position('A', position)
+            # self.ser.write(b"/ACW\r")
             print(
-                "Pulses line valve position: off (mix -> loop 1 -> waste / carrier -> loop 2 -> reactor)"
+                "Pulses line valve position: off (Gas Line A -> loop 1 -> vent / Gas Line B -> loop 2 -> reactor)"
             )
-        elif position == "on":
-            self.ser.write(b"3CC\r")
+        elif position == "ON":
+            self.move_valve_to_position('A', position)
+            # self.ser.write(b"/ACC\r")
             print(
-                "Pulses line valve position: on (mix -> loop 2 -> waste/ carrier -> loop 1 -> reactor)"
+                "Pulses line valve position: on (Gas Line B -> loop 2 -> vent / Gas Line A -> loop 1 -> reactor)"
             )
 
-    def cont_mode_dry(self, verbose: bool = True):
+    def cont_mode_A(self, verbose: bool = True):
         """Function that selects the position of the valves in the reaction mode selection
-        module to the continuous mode (dry) mode
+        module to the continuous mode gas line A mode
 
-        mix -> reactor ... pulses line carrier -> loops -> waste
+        Gas Line A -> reactor ... Gas Line B -> loops -> vent
 
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.ser.write(b"1CW\r")
-        self.ser.write(b"2CW\r")
-        self.ser.write(b"3CW\r")
+        self.move_valve_to_position('A', 'OFF')
+        self.move_valve_to_position('B', 'OFF')
+        self.move_valve_to_position('C', 'OFF')
+        # self.ser.write(b"/ACW\r")
+        # self.ser.write(b"/BCW\r")
+        # self.ser.write(b"/CCW\r")
         if verbose:
-            print("Valves operation mode: continuous mode (dry)")
-            print("mix -> reactor ... pulses line carrier -> loops -> waste")
+            print("Valves operation mode: continuous mode Gas Line A")
+            print("Gas Line A -> reactor ... Gas Line B -> loops -> vent")
 
-    # Fuction that fix the position of the valves in the reaction mode selection
-    # module to the continuous mode (wet) mode
-    def cont_mode_wet(self, verbose: bool = True):
+    def cont_mode_B(self, verbose: bool = True):
         """Function that selects the position of the valves in the reaction mode selection
-        module to the continuous mode (wet) mode
+        module to the continuous mode gas line B mode
 
-        mix -> vapor -> reactor ... pulses line carrier -> loops -> waste
+        Gas Line B -> reactor ... Gas Line A -> loops -> waste
 
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.ser.write(b"1CC\r")
-        self.ser.write(b"2CW\r")
-        self.ser.write(b"3CW\r")
+        self.move_valve_to_position('A', 'OFF')
+        self.move_valve_to_position('B', 'ON')
+        self.move_valve_to_position('C', 'OFF')
+        # self.ser.write(b"/ACW\r")
+        # self.ser.write(b"/BCC\r")
+        # self.ser.write(b"/CCW\r")
         if verbose:
-            print("Valves operation mode: continuous mode (wet)")
-            print("mix -> vapor -> reactor ... pulses line carrier -> loops -> waste")
+            print("Valves operation mode: continuous mode Gas Line B")
+            print("Gas Line B -> reactor ... Gas Line A -> loops -> waste")
 
-    def modulation(
-        self,
-        pulses=10,
-        time1=10,
-        time2=10,
-        start_gas="pulse",
-        end_gas="pulse",
-        monitoring_interval=0.01,
-        save_log="./log.txt",
-    ):
-        """Function that modulates the valves in the reaction mode selection module
-        between the pulses mode and the continuous mode (dry) mode
+    # def modulation(
+    #     self,
+    #     pulses=10,
+    #     time1=10,
+    #     time2=10,
+    #     start_gas="pulse",
+    #     end_gas="pulse",
+    #     monitoring_interval=0.01,
+    #     save_log="./log.txt",
+    # ):
+    #     """Function that modulates the valves in the reaction mode selection module
+    #     between the cont_mode_A and cont_mode_B
 
-        Args:
-            pulses (int): Number of pulses to be performed [default: 10]
-            time1 (int): Time in seconds for the valve to be in the pulses mode [default: 10]
-            time2 (int): Time in seconds for the valve to be in the continuous mode (dry) mode [default: 10]
-            start_gas (str): Gas to be used as carrier gas in the pulses line at the beginning of the modulation [default: "pulse"]
-            end_gas (str): Gas to be used as carrier gas in the pulses line at the end of the modulation [default: "pulse"]
-            monitoring_interval (float): Time in seconds between each valve status check [default: 0.01]
-            save_log (str): Path to the file where the valve status will be saved [default: "log.txt"]
-        """
-        if save_log is not None:
-            os.makedirs(os.path.dirname(save_log), exist_ok=True)
+    #     Args:
+    #         pulses (int): Number of pulses to be performed [default: 10]
+    #         time1 (int): Time in seconds for the valve to be in Gas Line B mode [default: 10]
+    #         time2 (int): Time in seconds for the valve to be in Gas Line A mode [default: 10]
+    #         start_gas (str): Gas to be used as carrier gas in the pulses line at the beginning of the modulation [default: "pulse"]
+    #         end_gas (str): Gas to be used as carrier gas in the pulses line at the end of the modulation [default: "pulse"]
+    #         monitoring_interval (float): Time in seconds between each valve status check [default: 0.01]
+    #         save_log (str): Path to the file where the valve status will be saved [default: "log.txt"]
+    #     """
+    #     if save_log is not None:
+    #         os.makedirs(os.path.dirname(save_log), exist_ok=True)
 
-            if not os.path.isfile(save_log):
-                with open(save_log, "w") as f:
-                    f.write("Time, Valve1\n")
+    #         if not os.path.isfile(save_log):
+    #             with open(save_log, "w") as f:
+    #                 f.write("Time, Valve1\n")
 
-        start_time = time.time()
-        end_time = start_time + pulses * (time1 + time2)
+    #     start_time = time.time()
+    #     end_time = start_time + pulses * (time1 + time2)
 
-        if start_gas == "pulse":
-            valve_fun1 = self.pulses_mode
-            valve_fun2 = self.cont_mode_dry
-        else:
-            valve_fun1 = self.cont_mode_dry
-            valve_fun2 = self.pulses_mode
+    #     if start_gas == "pulse":
+    #         valve_fun1 = self.pulses_mode
+    #         valve_fun2 = self.cont_mode_dry
+    #     else:
+    #         valve_fun1 = self.cont_mode_dry
+    #         valve_fun2 = self.pulses_mode
 
-        self.get_status()
-        if start_gas in VALVE_POSITION.keys():
-            start_gas_id = VALVE_POSITION[start_gas]
-        else:
-            raise ValueError(f"start_gas must be in {VALVE_POSITION.keys()}")
+    #     self.get_status()
+    #     if start_gas in VALVE_POSITION.keys():
+    #         start_gas_id = VALVE_POSITION[start_gas]
+    #     else:
+    #         raise ValueError(f"start_gas must be in {VALVE_POSITION.keys()}")
 
-        if end_gas in VALVE_POSITION.keys():
-            end_gas_id = VALVE_POSITION[end_gas]
-        else:
-            raise ValueError(f"end_gas must be in {VALVE_POSITION.keys()}")
+    #     if end_gas in VALVE_POSITION.keys():
+    #         end_gas_id = VALVE_POSITION[end_gas]
+    #     else:
+    #         raise ValueError(f"end_gas must be in {VALVE_POSITION.keys()}")
 
-        if VALVE_POSITION[start_gas] == 1:
-            valve_fun1 = self.pulses_mode
-            valve_fun2 = self.cont_mode_dry
-        else:
-            valve_fun1 = self.cont_mode_dry
-            valve_fun2 = self.pulses_mode
+    #     if VALVE_POSITION[start_gas] == 1:
+    #         valve_fun1 = self.pulses_mode
+    #         valve_fun2 = self.cont_mode_dry
+    #     else:
+    #         valve_fun1 = self.cont_mode_dry
+    #         valve_fun2 = self.pulses_mode
 
-        if VALVE_POSITION[end_gas] == 0:
-            valve_end_fun = self.pulses_mode
-        else:
-            valve_end_fun = self.cont_mode_dry
+    #     if VALVE_POSITION[end_gas] == 0:
+    #         valve_end_fun = self.pulses_mode
+    #     else:
+    #         valve_end_fun = self.cont_mode_dry
 
-        while True:
-            current_time = time.time()
-            accumulated_time = current_time - start_time
+    #     while True:
+    #         current_time = time.time()
+    #         accumulated_time = current_time - start_time
 
-            current_pulse = int(accumulated_time / (time1 + time2))
-            current_time_in_pulse = accumulated_time - current_pulse * (time1 + time2)
+    #         current_pulse = int(accumulated_time / (time1 + time2))
+    #         current_time_in_pulse = accumulated_time - current_pulse * (time1 + time2)
 
-            if current_time_in_pulse < time1:
-                if VALVE_POSITION[self.status[0]] == start_gas_id:
-                    time.sleep(monitoring_interval)
-                    continue
-                else:
-                    self.get_status()
-                    if VALVE_POSITION[self.status[0]] == start_gas_id:
-                        time.sleep(monitoring_interval)
-                        continue
-                    else:
-                        valve_fun1(verbose=False)
-                        if save_log is not None:
-                            self.get_status()
-                            with open(save_log, "a") as f:
-                                f.write(
-                                    f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
-                                )
-            else:
-                if VALVE_POSITION[self.status[0]] != start_gas_id:
-                    time.sleep(monitoring_interval)
-                    continue
-                else:
-                    self.get_status()
-                    if VALVE_POSITION[self.status[0]] != start_gas_id:
-                        time.sleep(monitoring_interval)
-                        continue
-                    else:
-                        valve_fun2(verbose=False)
-                        if save_log is not None:
-                            self.get_status()
-                            with open(save_log, "a") as f:
-                                f.write(
-                                    f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
-                                )
+    #         if current_time_in_pulse < time1:
+    #             if VALVE_POSITION[self.status[0]] == start_gas_id:
+    #                 time.sleep(monitoring_interval)
+    #                 continue
+    #             else:
+    #                 self.get_status()
+    #                 if VALVE_POSITION[self.status[0]] == start_gas_id:
+    #                     time.sleep(monitoring_interval)
+    #                     continue
+    #                 else:
+    #                     valve_fun1(verbose=False)
+    #                     if save_log is not None:
+    #                         self.get_status()
+    #                         with open(save_log, "a") as f:
+    #                             f.write(
+    #                                 f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
+    #                             )
+    #         else:
+    #             if VALVE_POSITION[self.status[0]] != start_gas_id:
+    #                 time.sleep(monitoring_interval)
+    #                 continue
+    #             else:
+    #                 self.get_status()
+    #                 if VALVE_POSITION[self.status[0]] != start_gas_id:
+    #                     time.sleep(monitoring_interval)
+    #                     continue
+    #                 else:
+    #                     valve_fun2(verbose=False)
+    #                     if save_log is not None:
+    #                         self.get_status()
+    #                         with open(save_log, "a") as f:
+    #                             f.write(
+    #                                 f"{current_time}, {VALVE_POSITION[self.status[0]]}\n"
+    #                             )
 
-            time.sleep(monitoring_interval)
+    #         time.sleep(monitoring_interval)
 
-            if current_time > end_time:
-                break
+    #         if current_time > end_time:
+    #             break
 
-        valve_end_fun()
+    #     valve_end_fun()
 
-    def pulses_mode(self, verbose=True):
+    def pulses_loop_mode_A(self, verbose=True):
         """Function that selects the position of the valves in the reaction mode selection
-        module to the pulses mode
+        module to the pulses loop mode
 
-        mix -> loop 2 -> reactor ... mix -> loop 1 -> waste
+        Gas Line B -> loop 2 -> reactor ... Gas Line A -> loop 1 -> vent
 
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.ser.write(b"1CC\r")
-        self.ser.write(b"2CW\r")
-        self.ser.write(b"3CW\r")
+        self.move_valve_to_position('A', 'ON')
+        self.move_valve_to_position('B', 'OFF')
+        self.move_valve_to_position('C', 'ON')        
+        # self.ser.write(b"/ACC\r")
+        # self.ser.write(b"/BCW\r")
+        # self.ser.write(b"/CCC\r")
         if verbose:
-            print("Valves operation mode: pulses")
-            print("pulses line carrier -> loop 2 -> reactor ... mix -> loop 1 -> waste")
+            print("Valves operation mode: pulses with gas loops")
+            print("Gas Line B -> loop 2 -> reactor ... Gas Line A -> loop 1 -> vent")
+
+    def pulses_loop_mode_B(self, verbose=True):
+        """Function that selects the position of the valves in the reaction mode selection
+        module to the pulses loop mode
+
+        Gas Line B -> loop 2 -> reactor ... Gas Line A -> loop 1 -> vent
+
+        Args:
+            verbose (bool): If True, prints the valve status [default: True]
+        """
+        self.move_valve_to_position('A', 'ON')
+        self.move_valve_to_position('B', 'ON')
+        self.move_valve_to_position('C', 'ON')        
+        # self.ser.write(b"/ACC\r")
+        # self.ser.write(b"/BCW\r")
+        # self.ser.write(b"/CCC\r")
+        if verbose:
+            print("Valves operation mode: pulses with gas loops")
+            print("Gas Line B -> loop 2 -> reactor ... Gas Line A -> loop 1 -> vent")
+
+    def send_pulses_loop_A(self,pulses,time_bp):
+        #total_time_loop = float(pulses) * float(time_bp)
+        #total_time.append(total_time_loop)
+        # tmp.pulse_ON()
+        self.pulses_loop_mode_A()
+        int_pulses = int(pulses)
+        float_time = float(time_bp)
+        print('Valves operation mode: pulses (dual loop alternation)')
+        print('Number of pulses (loop): {}\nTime in between pulses (s): {}'.format(pulses,time_bp))
+        print('Valve Position Off: Gas Line B -> loop 2 -> reactor /// Gas Line A -> loop 1 -> vent')
+        print('Valve Position On: Gas line B -> loop 1 -> reactor /// Gas Line A -> loop 2 -> vent')
+        for pulse in range(0, int_pulses):
+            # tmp.pulse_ON()
+            self.ser.write(b'/ATO\r') # Comand that executes the pulses valve actuation
+            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            time.sleep(float_time) # Conversion of seconds to miliseconds
+            # tmp.pulse_OFF()
+        print('Pulses have finished') # End of the pulses message
+
+    def send_pulses_loop_B(self,pulses,time_bp):
+        #total_time_loop = float(pulses) * float(time_bp)
+        #total_time.append(total_time_loop)
+        # tmp.pulse_ON()
+        self.pulses_loop_mode_B()
+        int_pulses = int(pulses)
+        float_time = float(time_bp)
+        print('Valves operation mode: pulses (dual loop alternation)')
+        print('Number of pulses (loop): {}\nTime in between pulses (s): {}'.format(pulses,time_bp))
+        print('Valve Position Off: Gas Line A -> loop 2 -> reactor /// Gas Line B -> loop 1 -> vent')
+        print('Valve Position On: Gas Line A -> loop 1 -> reactor /// Gas Line B -> loop 2 -> vent')
+        for pulse in range(0, int_pulses):
+            # tmp.pulse_ON()
+            self.ser.write(b'/ATO\r') # Comand that executes the pulses valve actuation
+            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            time.sleep(float_time) # Conversion of seconds to miliseconds
+            # tmp.pulse_OFF()
+        print('Pulses have finished') # End of the pulses message
+
+    def send_pulses_valve_A(self,pulses,time_vo,time_bp):
+        #total_time_loop = (float(pulses) * float(time_bp)) + (float(pulses) * float(time_vo))
+        #total_time.append(total_time_loop)
+        valve_actuation_time = 0.145
+        self.cont_mode_A()
+        int_pulses = int(pulses) # Preparing the integer input for the loop range
+        float_time_vo = float(time_vo) # Preparing the float input for the sleep function vo
+        float_time_bp = float(time_bp) # Preparing the float input for the sleep function bp
+        print('Valves operation mode: pulses (valve)')
+        print('Number of pulses (valve): {}\nTime valve open (s): {}\nTime in between pulses (s): {}'.format(pulses,time_vo,time_bp))
+        print('Valve Position Off: mixing line -> reactor /// pulses line carrier -> loop 2 -> loop 1 -> waste')
+        print('Valve Position On: pulses line carrier -> reactor /// mixing line -> loop 2 -> loop 1 -> waste')
+        for pulse in range(0, int_pulses):
+            self.cont_mode_B() # Comand that executes the pulses valve actuation
+            time.sleep(float_time_vo + valve_actuation_time) # Conversion of seconds to miliseconds
+            self.cont_mode_A() # Comand that executes the pulses valve actuation
+            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            time.sleep(float_time_bp) # Conversion of seconds to miliseconds
+        print('Pulses have finished') # End of the pulses message
 
     def define_flowsms(self):
         """Function to define the parameters of the Flow-SMS mass flow controllers
@@ -550,8 +659,8 @@ class GasControl:
             "H2_B": 0,
             "D2_A": 1,
             "D2_B": 1,
-            "O2_A": None,
-            "O2_B": None,
+            "O2_A": 0,
+            "O2_B": 0,
             "CO_AH": 0,
             "CO_BH": 0,
             "CO2_AH": 1,
@@ -633,32 +742,32 @@ class GasControl:
         }
 
         self.feed_gas_functions = {
-            "H2_A": self.feed_H2,
-            "H2_B": self.feed_H2,
-            "D2_A": self.feed_D2,
-            "D2_B": self.feed_D2,
-            "O2_A": self.feed_16O2,
-            "O2_B": self.feed_16O2,
-            "CO_AH": self.feed_CO,
-            "CO_AL": self.feed_CO,
-            "CO_BH": self.feed_CO,
-            "CO_BL": self.feed_CO,
-            "CH4_A": self.feed_12CH4,
-            "CH4_B": self.feed_12CH4,
-            "C2H6_A": 1.0,
-            "C2H6_B": 1.0,
-            "C3H8_A": 1.0,
-            "C3H8_B": 1.0,
-            "CO2_AH": self.feed_12CO2,
-            "CO2_AL": self.feed_12CO2,
-            "CO2_BH": self.feed_12CO2,
-            "CO2_AL": self.feed_12CO2,
-            "He_A": self.carrier_He_mix,
-            "He_B": self.carrier_He_pulses,
-            "Ar_A": self.carrier_Ar_mix,
-            "Ar_B": self.carrier_Ar_pulses,
-            "N2_A": self.carrier_Ar_mix,
-            "N2_B": self.carrier_Ar_pulses,
+            "H2_A": self.feed_H2_A,
+            "H2_B": self.feed_H2_B,
+            "D2_A": self.feed_D2_A,
+            "D2_B": self.feed_D2_B,
+            "O2_A": self.feed_O2_AB,
+            "O2_B": self.feed_O2_AB,
+            "CO_AH": self.feed_CO_AB,
+            "CO_AL": self.feed_CO_AB,
+            "CO_BH": self.feed_CO_AB,
+            "CO_BL": self.feed_CO_AB,
+            "CH4_A": self.feed_CH4_AB,
+            "CH4_B": self.feed_CH4_AB,
+            "C2H6_A": self.feed_C2H6_AB,
+            "C2H6_B": self.feed_C2H6_AB,
+            "C3H8_A": self.feed_C2H6_AB,
+            "C3H8_B": self.feed_C2H6_AB,
+            "CO2_AH": self.feed_CO2_AB,
+            "CO2_AL": self.feed_CO2_AB,
+            "CO2_BH": self.feed_CO2_AB,
+            "CO2_AL": self.feed_CO2_AB,
+            "He_A": self.carrier_He_A,
+            "He_B": self.carrier_He_B,
+            "Ar_A": self.carrier_Ar_A,
+            "Ar_B": self.carrier_Ar_B,
+            "N2_A": self.carrier_Ar_A,
+            "N2_B": self.carrier_Ar_B,
         }
 
         self.gas_float_to_int_factor = {
@@ -773,32 +882,32 @@ class GasControl:
 
     def flowsms_setpoints(
         self,
-        H2_A: None,
-        D2_A: None,
-        O2_A: None,
-        CO_AH: None,
-        CO2_AH: None,
-        CO_AL: None,
-        CO2_AL: None,
-        CH4_A: None,
-        C2H6_A: None,
-        C3H8_A: None,
-        He_A: None,
-        Ar_A: None,
-        N2_A: None,
-        He_B: None,
-        Ar_B: None,
-        N2_B: None,
-        CH4_B: None,
-        C2H6_B: None,
-        C3H8_B: None,
-        CO_BH: None,
-        CO2_BH: None,
-        CO_BL: None,
-        CO2_BL: None,
-        O2_B: None,
-        H2_B: None,
-        D2_B: None,
+        H2_A: float = None,
+        D2_A: float = None,
+        O2_A: float = None,
+        CO_AH: float = None,
+        CO2_AH: float = None,
+        CO_AL: float = None,
+        CO2_AL: float = None,
+        CH4_A: float = None,
+        C2H6_A: float = None,
+        C3H8_A: float = None,
+        He_A: float = None,
+        Ar_A: float = None,
+        N2_A: float = None,
+        He_B: float = None,
+        Ar_B: float = None,
+        N2_B: float = None,
+        CH4_B: float = None,
+        C2H6_B: float = None,
+        C3H8_B: float = None,
+        CO_BH: float = None,
+        CO2_BH: float = None,
+        CO_BL: float = None,
+        CO2_BL: float = None,
+        O2_B: float = None,
+        H2_B: float = None,
+        D2_B: float = None,
     ):
         """Function that sets the flow rates of the gases in the Flow-SMS mass flow controllers
 
@@ -898,16 +1007,16 @@ class GasControl:
         # Node ID values assigned in the MFCs configuration
 
         ID_P_A = 3
-        ID_H2_D2_A = 4,
-        ID_O2_A = 5,
-        ID_CO_CO2_A = 6,
-        ID_HC_A = 7,
-        ID_CARRIER_A = 8,
-        ID_CARRIER_B = 9,
-        ID_HC_B = 10,
-        ID_CO_CO2_B = 11,
-        ID_O2_B = 12,
-        ID_H2_D2_B = 13,
+        ID_H2_D2_A = 4
+        ID_O2_A = 5
+        ID_CO_CO2_A = 6
+        ID_HC_A = 7
+        ID_CARRIER_A = 8
+        ID_CARRIER_B = 9
+        ID_HC_B = 10
+        ID_CO_CO2_B = 11
+        ID_O2_B = 12
+        ID_H2_D2_B = 13
         ID_P_B = 14
 
         # ID assigned in the MFCs configuration for calibration curve allocation
@@ -963,7 +1072,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_h2_d2_b = [
             {
@@ -983,7 +1092,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_o2_a = [
             {
@@ -997,7 +1106,7 @@ class GasControl:
                 "proc_nr": 33,
                 "parm_nr": 3,
                 "parm_type": propar.PP_TYPE_FLOAT,
-            },
+            }
         ]
         params_o2_b = [
             {
@@ -1011,7 +1120,7 @@ class GasControl:
                 "proc_nr": 33,
                 "parm_nr": 3,
                 "parm_type": propar.PP_TYPE_FLOAT,
-            },
+            }
         ]
         params_hc_a = [
             {
@@ -1031,7 +1140,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_hc_b = [
             {
@@ -1051,7 +1160,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_co_co2_a = [
             {
@@ -1071,7 +1180,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_co_co2_b = [
             {
@@ -1091,7 +1200,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_carrier_a = [
             {
@@ -1111,7 +1220,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_carrier_b = [
             {
@@ -1131,7 +1240,7 @@ class GasControl:
                 "proc_nr": 1,
                 "parm_nr": 16,
                 "parm_type": propar.PP_TYPE_INT8,
-            },
+            }
         ]
         params_p_a = [
             {
@@ -1170,7 +1279,7 @@ class GasControl:
             if "data" in value:
                 flow = value.get("data")
             lst_h2_d2_a.append(format(flow, ".2f"))
-        fluid_h2_d2_a = float(lst_h2_d2_b[2])
+        fluid_h2_d2_a = float(lst_h2_d2_a[2])
         if fluid_h2_d2_a == 0:
             fluid_h2_d2_a = "H2_A"
         elif fluid_h2_d2_a == 1:
@@ -1204,7 +1313,7 @@ class GasControl:
             if "data" in value:
                 flow = value.get("data")
             lst_co_co2_a.append(format(flow, ".2f"))
-        fluid_co_co2_a = float(lst_co_co2_b[2])
+        fluid_co_co2_a = float(lst_co_co2_a[2])
         if fluid_co_co2_a == 0:
             fluid_co_co2_a = "CO_AH"
         elif fluid_co_co2_a == 1:
@@ -1340,7 +1449,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_h2_d2_a, lst_h2_d2_a[0], lst_h2_d2_a[1], H2_D2_percent_a
                 )
             )
@@ -1349,7 +1458,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_h2_d2_b, lst_h2_d2_b[0], lst_h2_d2_b[1],H2_D2_percent_b
                 )
             )
@@ -1376,7 +1485,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_co_co2_a, lst_co_co2_a[0], lst_co_co2_a[1], CO_CO2_percent_a
                 )
             )
@@ -1385,7 +1494,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_co_co2_b, lst_co_co2_b[0], lst_co_co2_b[1], CO_CO2_percent_b
                 )
             )
@@ -1394,7 +1503,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_hc_a, lst_hc_a[0], lst_hc_a[1], HC_percent_a
                 )
             )
@@ -1403,7 +1512,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
+                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
                     fluid_hc_b, lst_hc_b[0], lst_hc_b[1], HC_percent_b
                 )
             )
@@ -1412,7 +1521,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm".format(
+                "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm".format(
                     fluid_carrier_a, lst_carrier_a[0], lst_carrier_a[1]
                 )
             )
@@ -1421,7 +1530,7 @@ class GasControl:
             pass
         else:
             print(
-                "{}: measured flow is {} sccm. Flow setpoint is {} sccm".format(
+                "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm".format(
                     fluid_carrier_b, lst_carrier_b[0], lst_carrier_b[1]
                 )
             )
@@ -1437,33 +1546,26 @@ class GasControl:
         print("Pressure in line A: {} psia".format(lst_p_a[0]))
 
         print("Pressure in line B: {} psia".format(lst_p_b[0]))
-        print(
-            "Note: If using gases different than the calibrated ones fix the reported flows/concentrations by their correspondent calibration factor"
-        )
+
         print("------------------------------------------------------------")
 
 
 if __name__ == "__main__":
-    vc = GasControl()
-    vc.pulses_mode()
-    vc.get_status()
+    gc = GasControl()
+    gc.cont_mode_A()
+    gc.display_valve_positions()
 
-    vc.flowsms_setpoints(
-        H2=4.0,
-        He_mix=16,
-        He_pulses=17.6,
+    gc.flowsms_setpoints(
+        Ar_A=15,
+        Ar_B=15,
     )
 
-    vc.pulses_mode()
+    gc.carrier_Ar_B()
 
-    vc.flowsms_status(10)
-    vc.flowsms_setpoints()
-    vc.flowsms_status(10)
+    gc.flowsms_status()
+    gc.flowsms_setpoints()
+    gc.flowsms_status()
 
-    vc.flowsms_setpoints(
-        H2=4.0,
-
-    )
     # vc.modulation(
     #     pulses=10,
     #     time1=10,
