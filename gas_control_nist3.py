@@ -1,9 +1,9 @@
 """Valves, temperature, and Mass flow control module
 
 __author__ = "Jorge Moncada Vivas"
-__version__ = "1.0"
+__version__ = "3.0"
 __email__ = "moncadaja@gmail.com"
-__date__ = "9/10/2024"
+__date__ = "10/24/2024"
 
 Notes:
 By Jorge Moncada Vivas and contributions of Ryuichi Shimogawa
@@ -71,16 +71,16 @@ class GasControl:
 
 
         self.init_valves_comport()
-        print("Valve comport: {}".format(self.valves_comport))
+        print(f"Valve comport: {self.valves_comport}")
         self.serial_connection_valves()
 
         self.init_mfc_comport()
-        print("MFC comport: {}".format(self.mfc_comport))
+        print(f"MFC comport: {self.mfc_comport}")
         self.mfc_master = propar.master(self.mfc_comport, 38400)
         self.define_flowsms()
 
         self.init_tmp_comport()
-        print("TMP comport: {}".format(self.tmp_comport))
+        print(f"TMP comport: {self.tmp_comport}")
         self.tmp_master = minimalmodbus.Instrument(self.tmp_comport, self.sub_add_tmp)
 
         self.modbustcp = ModbusClient(self.host_euro, self.port_euro)
@@ -101,16 +101,14 @@ class GasControl:
                 self.print_available_comports()
 
                 raise ValueError(
-                    "No comport found for valves_hid: {}".format(self.valves_hid)
+                    f"No comport found for valves_hid: {self.valves_hid}"
                 )
             elif len(valves_port) == 1:
                 self.valves_comport = valves_port[0].device
             else:
                 self.print_available_comports()
                 raise ValueError(
-                    "Multiple comports found for valves_hid: {}".format(
-                        self.valves_hid
-                    )
+                    f"Multiple comports found for valves_hid: {self.valves_hid}"
                 )
 
         if self.valves_comport is None:
@@ -130,14 +128,14 @@ class GasControl:
                 self.print_available_comports()
 
                 raise ValueError(
-                    "No comport found for mfc_hid: {}".format(self.mfc_hid)
+                    f"No comport found for mfc_hid: {self.mfc_hid}"
                 )
             elif len(mfc_port) == 1:
                 self.mfc_comport = mfc_port[0].device
             else:
                 self.print_available_comports()
                 raise ValueError(
-                    "Multiple comports found for mfc_hid: {}".format(self.mfc_hid)
+                    f"Multiple comports found for mfc_hid: {self.mfc_hid}"
                 )
 
         if self.mfc_comport is None:
@@ -157,14 +155,14 @@ class GasControl:
                 self.print_available_comports()
 
                 raise ValueError(
-                    "No comport found for tmp_hid: {}".format(self.tmp_hid)
+                    f"No comport found for tmp_hid: {self.tmp_hid}"
                 )
             elif len(tmp_port) == 1:
                 self.tmp_comport = tmp_port[0].device
             else:
                 self.print_available_comports()
                 raise ValueError(
-                    "Multiple comports found for tmp_hid: {}".format(self.tmp_hid)
+                    f"Multiple comports found for tmp_hid: {self.tmp_hid}"
                 )
 
         if self.tmp_comport is None:
@@ -177,7 +175,7 @@ class GasControl:
         print("Available comports:")
         for comport in comports_available:
             print(
-                "{}: {} [{}]".format(comport.device, comport.description, comport.hwid)
+                f"{comport.device}: {comport.description} [{comport.hwid}]"
             )
 
     def decode_serial_message(self):
@@ -232,155 +230,155 @@ class GasControl:
             print("The Port is closed: " + self.ser.portstr)
 
     def get_valve_position(self, valve):
-        self.ser.write('/{}CP\r'.format(valve).encode())
-        current_position = self.ser.readline().decode('utf-8').strip()
+        self.ser.write(f"/{valve}CP\r".encode())
+        current_position = self.ser.readline().decode("utf-8").strip()
         valve_no = current_position[1]
         position = current_position[-2]
-        if position == 'A':
-            return valve_no, 'OFF'
-        elif position == 'B':
-            return valve_no, 'ON'
+        if position == "A":
+            return valve_no, "OFF"
+        elif position == "B":
+            return valve_no, "ON"
         else:
-            return valve_no, 'Unknown'
+            return valve_no, "Unknown"
         
     def display_valve_positions(self, valve=None):
         if valve is not None:
             valve_no, position = self.get_valve_position(valve)
-            print('Valve "{}" position is {}'.format(valve_no, position))
+            print(f"Valve {valve_no} position is {position}")
         else:
-            valves = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+            valves = ["A", "B", "C", "D", "E", "F", "G", "H", "I"]
             positions = [self.get_valve_position(valve) for valve in valves]
             for valve_no, position in positions:
-                print('Valve "{}" position is {}'.format(valve_no, position))
+                print(f"Valve {valve_no} position is {position}")
 
     def move_valve_to_position(self, valve, position):
-        if position == 'ON':
-            position_real = 'B'
-            command = 'CC'
-        elif position == 'OFF':
-            position_real = 'A'
-            command = 'CW'
+        if position == "ON":
+            position_real = "B"
+            command = "CC"
+        elif position == "OFF":
+            position_real = "A"
+            command = "CW"
         else:
-            print('Invalid position specified.')
+            print("Invalid position specified.")
             return        
-        self.ser.write('/{}{}\r'.format(valve, command).encode())
+        self.ser.write(f"/{valve}{command}\r".encode())
         time.sleep(0.3)
-        self.ser.write('/{}CP\r'.format(valve).encode())
-        new_position = self.ser.readline().decode('utf-8').strip()[-2]
+        self.ser.write(f"/{valve}CP\r".encode())
+        new_position = self.ser.readline().decode("utf-8").strip()[-2]
         if new_position != position_real:
-            self.ser.write('/{}{}\r'.format(valve, command).encode())
+            self.ser.write(f"/{valve}{command}\r".encode())
         else:
-            # print('Valve "{}" successfully moved to position {}'.format(valve, position))
+            # print(f"Valve {valve} successfully moved to position {position}")
             pass
     def commands_list(self, valve):
-        self.ser.write('/{}?\r'.format(valve).encode())        
+        self.ser.write(f"/{valve}?\r".encode())        
         self.decode_serial_message()
 
     def toggle_valve_position(self, valve):
-        self.ser.write('/{}TO\r'.format(valve).encode())
+        self.ser.write(f"/{valve}TO\r".encode())
         time.sleep(0.3)
         self.decode_serial_message()
 
     def valve_controller_settings(self, valve):
-        self.ser.write('/{}STAT\r'.format(valve).encode())
+        self.ser.write(f"/{valve}STAT\r".encode())
         self.decode_serial_message()
 
     def valve_actuation_time(self, valve):
-        self.ser.write('/{}TM\r'.format(valve).encode())
+        self.ser.write(f"/{valve}TM\r".encode())
         self.decode_serial_message()
 
     def valve_number_ports(self, valve):
-        self.ser.write('/{}NP\r'.format(valve).encode())
+        self.ser.write(f"/{valve}NP\r".encode())
         self.decode_serial_message()
 
     def valve_actuation_message(self, valve, message=None):
-        if message == 'no message':
+        if message == "no message":
             message = 0
-            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            self.ser.write(f"/{valve}IFM{message}\r".encode())
             self.decode_serial_message()
             
-        elif message == 'short':
+        elif message == "short":
             message = 1
-            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            self.ser.write(f"/{valve}IFM{message}\r".encode())
             self.decode_serial_message()
         
-        elif message == 'large':
+        elif message == "large":
             message = 2
-            self.ser.write('/{}IFM{}\r'.format(valve, message).encode())
+            self.ser.write(f"/{valve}IFM{message}\r".encode())
             self.decode_serial_message()
         else:
-            self.ser.write('/{}IFM\r'.format(valve).encode())
+            self.ser.write(f"/{valve}IFM\r".encode())
             self.decode_serial_message()
             
     def carrier_He_A(self):
         """Fuction that selects He as carrier gas for the Gas Line A"""
-        self.move_valve_to_position('G', 'OFF')
+        self.move_valve_to_position("G", "OFF")
         # self.ser.write(b'/GCW\r')
         print("Feeding He to Gas Line A")
 
     def carrier_Ar_A(self):
         """Fuction that selects Ar as carrier gas for Gas Line A"""
-        self.move_valve_to_position('G', 'ON')
+        self.move_valve_to_position("G", "ON")
         # self.ser.write(b"/GCC\r")
         print("Feeding Ar to Gas Line A")
 
     def carrier_He_B(self):
         """Fuction that selects He as carrier gas for Gas Line B"""
-        self.move_valve_to_position('F', 'ON')
+        self.move_valve_to_position("F", "ON")
         # self.ser.write(b"/FCC\r")
         print("Feeding He to Gas Line B")
 
     def carrier_Ar_B(self):
         """Function that selects Ar as carrier gas for Gas Line B"""
-        self.move_valve_to_position('F', 'OFF')
+        self.move_valve_to_position("F", "OFF")
         # self.ser.write(b"/FCW\r")
         print("Feeding Ar to Gas Line B")
 
     def feed_CO2_AB(self):
         """Fuction that selects carbon monoxide as gas source for Gas Line A and B"""
-        self.move_valve_to_position('D', 'ON')
+        self.move_valve_to_position("D", "ON")
         # self.ser.write(b"/DCC\r")
         print("Feeding CO2 to Gas Line A and B")
 
     def feed_CO_AB(self):
         """Fuction that selects carbon monoxide as gas source for Gas Line A and B"""
-        self.move_valve_to_position('D', 'OFF')
+        self.move_valve_to_position("D", "OFF")
         # self.ser.write(b"/DCW\r")
         print("Feeding CO to Gas Line A and B")
 
     def feed_H2_A(self):
         """Function that selects hydrogen as gas source for Gas Line A"""
-        self.move_valve_to_position('I', 'OFF')
+        self.move_valve_to_position("I", "OFF")
         # self.ser.write(b"/ICW\r")
         print("Feeding H2 to Gas Line A")
 
     def feed_D2_A(self):
         """Function that selects deuterium as gas source for Gas Line A"""
-        self.move_valve_to_position('I', 'ON')
+        self.move_valve_to_position("I", "ON")
         # self.ser.write(b"/ICC\r")
         print("Feeding D2 to Gas Line A")
 
     def feed_H2_B(self):
         """Function that selects hydrogen as gas source for Gas Line B"""
-        self.move_valve_to_position('H', 'ON')
+        self.move_valve_to_position("H", "ON")
         # self.ser.write(b"/HCC\r")
         print("Feeding H2 to Gas Line B")
 
     def feed_D2_B(self):
         """Function that selects deuterium as gas source for Gas Line B"""
-        self.move_valve_to_position('H', 'OFF')
+        self.move_valve_to_position("H", "OFF")
         # self.ser.write(b"/HCW\r")
         print("Feeding D2 to Gas Line B")
 
     def feed_CH4_AB(self):
         """Fuction that selects methane as gas source for Gas Line A and B"""
-        self.move_valve_to_position('E', 'ON')
+        self.move_valve_to_position("E", "ON")
         # self.ser.write(b"/ECC\r")
         print("Feeding CH4 to Gas Line A and B")
 
     def feed_C2H6_AB(self):
         """Function that selects ethane as gas source for Gas Line A and B"""
-        self.move_valve_to_position('E', 'OFF')
+        self.move_valve_to_position("E", "OFF")
         # self.ser.write(b"/ECW\r")
         print("Feeding C2H6 to Gas Line A and B")
 
@@ -398,11 +396,11 @@ class GasControl:
                             "on" means that the valve is in the position Gas Line A/B -> gas loop
         """
         if position == "OFF":
-            self.move_valve_to_position('C', position)
+            self.move_valve_to_position("C", position)
             # self.ser.write(b"/CCW\r")
             print("Gas Line A/B valve position: off (Gas Line A/B -> reactor)")
         elif position == "ON":
-            self.move_valve_to_position('C', position)
+            self.move_valve_to_position("C", position)
             # self.ser.write(b"/CCC\r")
             print("Gas Line A/B valve position: on (Gas Line A/B -> loop)")
 
@@ -416,11 +414,11 @@ class GasControl:
         """
 
         if position == "OFF":
-            self.move_valve_to_position('B', position)
+            self.move_valve_to_position("B", position)
             # self.ser.write(b"/BCW\r")
             print("Valve B position: off \n(Gas Line A -> reactor)\n(Gas Line B -> pulses)")
         elif position == "ON":
-            self.move_valve_to_position('B', position)
+            self.move_valve_to_position("B", position)
             # self.ser.write(b"/BCC\r")
             print("Valve B position: off \n(Gas Line B -> reactor)\n(Gas Line A -> pulses)")
 
@@ -433,13 +431,13 @@ class GasControl:
                             "on" means that the valve is in the loop 2 -> reactor, loop 1 -> vent
         """
         if position == "OFF":
-            self.move_valve_to_position('A', position)
+            self.move_valve_to_position("A", position)
             # self.ser.write(b"/ACW\r")
             print(
                 "Pulses line valve position: off (Gas Line A -> loop 1 -> vent / Gas Line B -> loop 2 -> reactor)"
             )
         elif position == "ON":
-            self.move_valve_to_position('A', position)
+            self.move_valve_to_position("A", position)
             # self.ser.write(b"/ACC\r")
             print(
                 "Pulses line valve position: on (Gas Line B -> loop 2 -> vent / Gas Line A -> loop 1 -> reactor)"
@@ -454,9 +452,9 @@ class GasControl:
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.move_valve_to_position('A', 'OFF')
-        self.move_valve_to_position('B', 'OFF')
-        self.move_valve_to_position('C', 'OFF')
+        self.move_valve_to_position("A", "OFF")
+        self.move_valve_to_position("B", "OFF")
+        self.move_valve_to_position("C", "OFF")
         # self.ser.write(b"/ACW\r")
         # self.ser.write(b"/BCW\r")
         # self.ser.write(b"/CCW\r")
@@ -473,9 +471,9 @@ class GasControl:
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.move_valve_to_position('A', 'OFF')
-        self.move_valve_to_position('B', 'ON')
-        self.move_valve_to_position('C', 'OFF')
+        self.move_valve_to_position("A", "OFF")
+        self.move_valve_to_position("B", "ON")
+        self.move_valve_to_position("C", "OFF")
         # self.ser.write(b"/ACW\r")
         # self.ser.write(b"/BCC\r")
         # self.ser.write(b"/CCW\r")
@@ -492,9 +490,9 @@ class GasControl:
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.move_valve_to_position('A', 'ON')
-        self.move_valve_to_position('B', 'OFF')
-        self.move_valve_to_position('C', 'ON')        
+        self.move_valve_to_position("A", "ON")
+        self.move_valve_to_position("B", "OFF")
+        self.move_valve_to_position("C", "ON")        
         # self.ser.write(b"/ACC\r")
         # self.ser.write(b"/BCW\r")
         # self.ser.write(b"/CCC\r")
@@ -511,9 +509,9 @@ class GasControl:
         Args:
             verbose (bool): If True, prints the valve status [default: True]
         """
-        self.move_valve_to_position('A', 'ON')
-        self.move_valve_to_position('B', 'ON')
-        self.move_valve_to_position('C', 'ON')        
+        self.move_valve_to_position("A", "ON")
+        self.move_valve_to_position("B", "ON")
+        self.move_valve_to_position("C", "ON")        
         # self.ser.write(b"/ACC\r")
         # self.ser.write(b"/BCW\r")
         # self.ser.write(b"/CCC\r")
@@ -528,17 +526,17 @@ class GasControl:
         self.pulses_loop_mode_A()
         int_pulses = int(pulses)
         float_time = float(time_bp)
-        print('Valves operation mode: pulses (dual loop alternation)')
-        print('Number of pulses (loop): {}\nTime in between pulses (s): {}'.format(pulses,time_bp))
-        print('Valve Position Off: Gas Line B -> loop 2 -> reactor /// Gas Line A -> loop 1 -> vent')
-        print('Valve Position On: Gas line B -> loop 1 -> reactor /// Gas Line A -> loop 2 -> vent')
+        print("Valves operation mode: pulses (dual loop alternation)")
+        print(f"Number of pulses (loop): {pulses}\nTime in between pulses (s): {time_bp}")
+        print("Valve Position Off: Gas Line B -> loop 2 -> reactor /// Gas Line A -> loop 1 -> vent")
+        print("Valve Position On: Gas line B -> loop 1 -> reactor /// Gas Line A -> loop 2 -> vent")
         for pulse in range(0, int_pulses):
             # tmp.pulse_ON()
-            self.ser.write(b'/ATO\r') # Comand that executes the pulses valve actuation
-            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            self.ser.write(b"/ATO\r") # Comand that executes the pulses valve actuation
+            print(f"Sending pulse number {pulse+1} of {int_pulses}", end = "\r") # Pulse status message for terminal window
             time.sleep(float_time) # Conversion of seconds to miliseconds
             # tmp.pulse_OFF()
-        print('Pulses have finished') # End of the pulses message
+        print("Pulses have finished") # End of the pulses message
 
     def send_pulses_loop_B(self,pulses,time_bp):
         #total_time_loop = float(pulses) * float(time_bp)
@@ -547,17 +545,17 @@ class GasControl:
         self.pulses_loop_mode_B()
         int_pulses = int(pulses)
         float_time = float(time_bp)
-        print('Valves operation mode: pulses (dual loop alternation)')
-        print('Number of pulses (loop): {}\nTime in between pulses (s): {}'.format(pulses,time_bp))
-        print('Valve Position Off: Gas Line A -> loop 2 -> reactor /// Gas Line B -> loop 1 -> vent')
-        print('Valve Position On: Gas Line A -> loop 1 -> reactor /// Gas Line B -> loop 2 -> vent')
+        print("Valves operation mode: pulses (dual loop alternation)")
+        print(f"Number of pulses (loop): {pulses}\nTime in between pulses (s): {time_bp}")
+        print("Valve Position Off: Gas Line A -> loop 2 -> reactor /// Gas Line B -> loop 1 -> vent")
+        print("Valve Position On: Gas Line A -> loop 1 -> reactor /// Gas Line B -> loop 2 -> vent")
         for pulse in range(0, int_pulses):
             # tmp.pulse_ON()
-            self.ser.write(b'/ATO\r') # Comand that executes the pulses valve actuation
-            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            self.ser.write(b"/ATO\r") # Comand that executes the pulses valve actuation
+            print(f"Sending pulse number {pulse+1} of {int_pulses}", end = "\r") # Pulse status message for terminal window
             time.sleep(float_time) # Conversion of seconds to miliseconds
             # tmp.pulse_OFF()
-        print('Pulses have finished') # End of the pulses message
+        print("Pulses have finished") # End of the pulses message
 
     def send_pulses_valve_A(self,pulses,time_vo,time_bp):
         #total_time_loop = (float(pulses) * float(time_bp)) + (float(pulses) * float(time_vo))
@@ -567,17 +565,17 @@ class GasControl:
         int_pulses = int(pulses) # Preparing the integer input for the loop range
         float_time_vo = float(time_vo) # Preparing the float input for the sleep function vo
         float_time_bp = float(time_bp) # Preparing the float input for the sleep function bp
-        print('Valves operation mode: pulses (valve)')
-        print('Number of pulses (valve): {}\nTime valve open (s): {}\nTime in between pulses (s): {}'.format(pulses,time_vo,time_bp))
-        print('Valve Position Off: mixing line -> reactor /// pulses line carrier -> loop 2 -> loop 1 -> waste')
-        print('Valve Position On: pulses line carrier -> reactor /// mixing line -> loop 2 -> loop 1 -> waste')
+        print("Valves operation mode: pulses (valve)")
+        print(f"Number of pulses (valve): {pulses}\nTime valve open (s): {time_vo}\nTime in between pulses (s): {time_bp}")
+        print("Valve Position Off: mixing line -> reactor /// pulses line carrier -> loop 2 -> loop 1 -> waste")
+        print("Valve Position On: pulses line carrier -> reactor /// mixing line -> loop 2 -> loop 1 -> waste")
         for pulse in range(0, int_pulses):
             self.cont_mode_B() # Comand that executes the pulses valve actuation
             time.sleep(float_time_vo + valve_actuation_time) # Conversion of seconds to miliseconds
             self.cont_mode_A() # Comand that executes the pulses valve actuation
-            print('Sending pulse number {} of {}'.format(pulse+1,int_pulses), end = "\r") # Pulse status message for terminal window
+            print(f"Sending pulse number {pulse+1} of {int_pulses}", end = "\r") # Pulse status message for terminal window
             time.sleep(float_time_bp) # Conversion of seconds to miliseconds
-        print('Pulses have finished') # End of the pulses message
+        print("Pulses have finished") # End of the pulses message
 
     
         
@@ -1058,7 +1056,7 @@ class GasControl:
         for value in values_h2_d2_a:
             if "data" in value:
                 flow = value.get("data")
-            lst_h2_d2_a.append(format(flow, ".2f"))
+            lst_h2_d2_a.append(f"{flow: .2f}")
         fluid_h2_d2_a = float(lst_h2_d2_a[2])
         if fluid_h2_d2_a == 0:
             fluid_h2_d2_a = "H2_A"
@@ -1069,7 +1067,7 @@ class GasControl:
         for value in values_h2_d2_b:
             if "data" in value:
                 flow = value.get("data")
-            lst_h2_d2_b.append(format(flow, ".2f"))
+            lst_h2_d2_b.append(f"{flow: .2f}")
         fluid_h2_d2_b = float(lst_h2_d2_b[2])
         if fluid_h2_d2_b == 0:
             fluid_h2_d2_b = "H2_B"
@@ -1080,19 +1078,19 @@ class GasControl:
         for value in values_o2_a:
             if "data" in value:
                 flow = value.get("data")
-            lst_o2_a.append(format(flow, ".2f"))
+            lst_o2_a.append(f"{flow: .2f}")
 
         lst_o2_b = []
         for value in values_o2_b:
             if "data" in value:
                 flow = value.get("data")
-            lst_o2_b.append(format(flow, ".2f"))   
+            lst_o2_b.append(f"{flow: .2f}")  
         
         lst_co_co2_a = []
         for value in values_co_co2_a:
             if "data" in value:
                 flow = value.get("data")
-            lst_co_co2_a.append(format(flow, ".2f"))
+            lst_co_co2_a.append(f"{flow: .2f}")
         fluid_co_co2_a = float(lst_co_co2_a[2])
         if fluid_co_co2_a == 0:
             fluid_co_co2_a = "CO_AH"
@@ -1107,7 +1105,7 @@ class GasControl:
         for value in values_co_co2_b:
             if "data" in value:
                 flow = value.get("data")
-            lst_co_co2_b.append(format(flow, ".2f"))
+            lst_co_co2_b.append(f"{flow: .2f}")
         fluid_co_co2_b = float(lst_co_co2_b[2])
         if fluid_co_co2_b == 0:
             fluid_co_co2_b = "CO_BH"
@@ -1122,7 +1120,7 @@ class GasControl:
         for value in values_hc_a:
             if "data" in value:
                 flow = value.get("data")
-            lst_hc_a.append(format(flow, ".2f"))
+            lst_hc_a.append(f"{flow: .2f}")
         fluid_hc_a = float(lst_hc_a[2])
         if fluid_hc_a == 0:
             fluid_hc_a = "CH4_A"
@@ -1135,7 +1133,7 @@ class GasControl:
         for value in values_hc_b:
             if "data" in value:
                 flow = value.get("data")
-            lst_hc_b.append(format(flow, ".2f"))
+            lst_hc_b.append(f"{flow: .2f}")
         fluid_hc_b = float(lst_hc_b[2])
         if fluid_hc_b == 0:
             fluid_hc_b = "CH4_B"
@@ -1148,7 +1146,7 @@ class GasControl:
         for value in values_carrier_a:
             if "data" in value:
                 flow = value.get("data")
-            lst_carrier_a.append(format(flow, ".2f"))
+            lst_carrier_a.append(f"{flow: .2f}")
         fluid_carrier_a = float(lst_carrier_a[2])
         if fluid_carrier_a == 0:
             fluid_carrier_a = "He"
@@ -1161,7 +1159,7 @@ class GasControl:
         for value in values_carrier_b:
             if "data" in value:
                 flow = value.get("data")
-            lst_carrier_b.append(format(flow, ".2f"))
+            lst_carrier_b.append(f"{flow: .2f}")
         fluid_carrier_b = float(lst_carrier_b[2])
         if fluid_carrier_b == 0:
             fluid_carrier_b = "He"
@@ -1172,49 +1170,35 @@ class GasControl:
 
         lst_p_a = []
         p_a_dict = values_p_a[0]
-        p_a = format(p_a_dict.get("data"), ".2f")
+        p_a = f"{p_a_dict.get("data"): .2f}"
         lst_p_a.append(p_a)
 
         lst_p_b = []
         p_b_dict = values_p_b[0]
-        p_b = format(p_b_dict.get("data"), ".2f")
+        p_b = f"{p_b_dict.get("data"): .2f}"
         lst_p_b.append(p_b)
 
         # Calculating percentage values for the actual flows
 
         total_flow_a = float(
-            format(
-                float(lst_h2_d2_a[0])
-                + float(lst_o2_a[0])
-                + float(lst_co_co2_a[0])
-                + float(lst_hc_a[0])
-                + float(lst_carrier_a[0]),
-                ".2f",
-            )
+            f"{(float(lst_h2_d2_a[0]) + float(lst_o2_a[0]) + float(lst_co_co2_a[0]) + float(lst_hc_a[0]) + float(lst_carrier_a[0])): .2f}"
         )
         if total_flow_a != 0:
-            H2_D2_percent_a = format((float(lst_h2_d2_a[0]) / total_flow_a) * 100, ".1f")
-            O2_percent_a = format((float(lst_o2_a[0]) / total_flow_a) * 100, ".1f")
-            CO_CO2_percent_a = format((float(lst_co_co2_a[0]) / total_flow_a) * 100, ".1f")
-            HC_percent_a = format((float(lst_hc_a[0]) / total_flow_a) * 100, ".1f")
-            # carrier_a_percent = format((float(lst_carrier_a[0])/total_flow_a)*100, '.1f')
+            H2_D2_percent_a = f"{(float(lst_h2_d2_a[0]) / total_flow_a) * 100: .1f}"
+            O2_percent_a = f"{(float(lst_o2_a[0]) / total_flow_a) * 100: .1f}"
+            CO_CO2_percent_a = f"{(float(lst_co_co2_a[0]) / total_flow_a) * 100: .1f}"
+            HC_percent_a = f"{(float(lst_hc_a[0]) / total_flow_a) * 100: .1f}"
+            # carrier_a_percent = f"{(float(lst_carrier_a[0])/total_flow_a)*100: .1f}"
 
         total_flow_b = float(
-            format(
-                float(lst_h2_d2_b[0])
-                + float(lst_o2_b[0])
-                + float(lst_co_co2_b[0])
-                + float(lst_hc_b[0])
-                + float(lst_carrier_b[0]),
-                ".2f",
-            )
+            f"{(float(lst_h2_d2_b[0]) + float(lst_o2_b[0]) + float(lst_co_co2_b[0]) + float(lst_hc_b[0]) + float(lst_carrier_b[0])): .2f}"
         )
         if total_flow_b != 0:
-            H2_D2_percent_b = format((float(lst_h2_d2_b[0]) / total_flow_b) * 100, ".1f")
-            O2_percent_b = format((float(lst_o2_b[0]) / total_flow_b) * 100, ".1f")
-            CO_CO2_percent_b = format((float(lst_co_co2_b[0]) / total_flow_b) * 100, ".1f")
-            HC_percent_b = format((float(lst_hc_b[0]) / total_flow_b) * 100, ".1f")
-            # carrier_b_percent = format((float(lst_carrier_b[0])/total_flow_b)*100, '.1f')
+            H2_D2_percent_b = f"{(float(lst_h2_d2_b[0]) / total_flow_b) * 100: .1f}"
+            O2_percent_b = f"{(float(lst_o2_b[0]) / total_flow_b) * 100: .1f}"
+            CO_CO2_percent_b = f"{(float(lst_co_co2_b[0]) / total_flow_b) * 100: .1f}"
+            HC_percent_b = f"{(float(lst_hc_b[0]) / total_flow_b) * 100: .1f}"
+            # carrier_b_percent = f"{(float(lst_carrier_b[0])/total_flow_b)*100: .1f}"
 
         # Creating and printing table with the actual and set flows, and line pressures
 
@@ -1230,113 +1214,93 @@ class GasControl:
                 pass
             else:
                 print(
-                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_h2_d2_a, lst_h2_d2_a[0], lst_h2_d2_a[1], H2_D2_percent_a
-                    )
+                    f"{fluid_h2_d2_a}_A: measured flow is {lst_h2_d2_a[0]} sccm. Flow setpoint is {lst_h2_d2_a[1]} sccm. Concentration is {H2_D2_percent_a}%"
                 )
 
             if float(lst_h2_d2_b[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_h2_d2_b, lst_h2_d2_b[0], lst_h2_d2_b[1],H2_D2_percent_b
-                    )
+                    f"{fluid_h2_d2_b}_B: measured flow is {lst_h2_d2_b[0]} sccm. Flow setpoint is {lst_h2_d2_b[1]} sccm. Concentration is {H2_D2_percent_b}%"
                 )
 
             if float(lst_o2_a[1]) == 0:
                 pass
             else:
                 print(
-                    "O2_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        lst_o2_a[0], lst_o2_a[1], O2_percent_a
-                    )
+                    f"O2_A: measured flow is {lst_o2_a[0]} sccm. Flow setpoint is {lst_o2_a[1]} sccm. Concentration is {O2_percent_a}%"
                 )
 
             if float(lst_o2_b[1]) == 0:
                 pass
             else:
                 print(
-                    "O2_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        lst_o2_b[0], lst_o2_b[1], O2_percent_b
-                    )
+                    f"O2_B: measured flow is {lst_o2_b[0]} sccm. Flow setpoint is {lst_o2_b[1]} sccm. Concentration is {O2_percent_b}%"
                 )
 
             if float(lst_co_co2_a[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_co_co2_a, lst_co_co2_a[0], lst_co_co2_a[1], CO_CO2_percent_a
-                    )
+                    f"{fluid_co_co2_a}_A: measured flow is {lst_co_co2_a[0]} sccm. Flow setpoint is {lst_co_co2_a[1]} sccm. Concentration is {CO_CO2_percent_a}%"
                 )
 
             if float(lst_co_co2_b[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_co_co2_b, lst_co_co2_b[0], lst_co_co2_b[1], CO_CO2_percent_b
-                    )
+                    f"{fluid_co_co2_b}_B: measured flow is {lst_co_co2_b[0]} sccm. Flow setpoint is {lst_co_co2_b[1]} sccm. Concentration is {CO_CO2_percent_b}%"
                 )
 
             if float(lst_hc_a[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_hc_a, lst_hc_a[0], lst_hc_a[1], HC_percent_a
-                    )
+                    f"{fluid_hc_a}_A: measured flow is {lst_hc_a[0]} sccm. Flow setpoint is {lst_hc_a[1]} sccm. Concentration is {HC_percent_a}%"
                 )
 
             if float(lst_hc_b[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm. Concentration is {}%".format(
-                        fluid_hc_b, lst_hc_b[0], lst_hc_b[1], HC_percent_b
-                    )
+                    f"{fluid_hc_b}_B: measured flow is {lst_hc_b[0]} sccm. Flow setpoint is {lst_hc_b[1]} sccm. Concentration is {HC_percent_b}%"
                 )
 
             if float(lst_carrier_a[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_A: measured flow is {} sccm. Flow setpoint is {} sccm".format(
-                        fluid_carrier_a, lst_carrier_a[0], lst_carrier_a[1]
-                    )
+                    f"{fluid_carrier_a}_A: measured flow is {lst_carrier_a[0]} sccm. Flow setpoint is {lst_carrier_a[1]} sccm"
                 )
 
             if float(lst_carrier_b[1]) == 0:
                 pass
             else:
                 print(
-                    "{}_B: measured flow is {} sccm. Flow setpoint is {} sccm".format(
-                        fluid_carrier_b, lst_carrier_b[0], lst_carrier_b[1]
-                    )
+                    f"{fluid_carrier_b}_B: measured flow is {lst_carrier_b[0]} sccm. Flow setpoint is {lst_carrier_b[1]} sccm"
                 )
 
-            print("Total flow line A: {} sccm".format(total_flow_a))
+            print(f"Total flow line A: {total_flow_a} sccm")
 
-            print("Total flow line B: {} sccm".format(total_flow_b))
+            print(f"Total flow line B: {total_flow_b} sccm")
 
             print("-----------------------")
             print("--- Pressure Report ---")
             print("-----------------------")
 
-            print("Pressure in line A: {} psia".format(lst_p_a[0]))
+            print(f"Pressure in line A: {lst_p_a[0]} psia")
 
-            print("Pressure in line B: {} psia".format(lst_p_b[0]))
+            print(f"Pressure in line B: {lst_p_b[0]} psia")
 
             print("------------------------------------------------------------")
 
     def pressure_report(self):
         values_p_a = self.mfc_master.read_parameters([{"node": 3,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
         p_a_dict = values_p_a[0]
-        p_a = format(p_a_dict.get("data"), ".2f")
+        p_a = f"{p_a_dict.get("data"): .2f}"
         values_p_b = self.mfc_master.read_parameters([{"node": 14,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
         p_b_dict = values_p_b[0]
-        p_b = format(p_b_dict.get("data"), ".2f")
+        p_b = f"{p_b_dict.get("data"): .2f}"
         print(f"P_A = {p_a} psia\nP_B = {p_b} psia\n")
 
     
@@ -1350,7 +1314,7 @@ class GasControl:
     def get_temp_wsp(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = format(self.modbustcp.read_holding_registers(2)[0]*0.1, ".1f")
+        regs_list_1 = f"{self.modbustcp.read_holding_registers(2)[0]*0.1: .1f}"
         # print(regs_list_1)
         # print(f"WSP Temp = {regs_list_1} degC")
         self.modbustcp.close()
@@ -1359,7 +1323,7 @@ class GasControl:
     def get_temp_tc(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+        regs_list_1 = f"{self.modbustcp.read_holding_registers(1)[0]*0.1: .1f}"
         # print(regs_list_1)
         # print(f"TC Temp = {regs_list_1} degC")
         self.modbustcp.close()
@@ -1368,7 +1332,7 @@ class GasControl:
     def get_temp_prog(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = format(self.modbustcp.read_holding_registers(5)[0]*0.1, ".1f")
+        regs_list_1 = f"{self.modbustcp.read_holding_registers(5)[0]*0.1: .1f}"
         # print(regs_list_1)
         # print(f"Prog Temp = {regs_list_1} degC")
         self.modbustcp.close()
@@ -1377,7 +1341,7 @@ class GasControl:
     def get_pw_prog(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = format(self.modbustcp.read_holding_registers(85)[0]*0.1, ".1f")
+        regs_list_1 = f"{self.modbustcp.read_holding_registers(85)[0]*0.1: .1f}"
         # print(regs_list_1)
         # print(f"Prog Power = {regs_list_1}%")
         self.modbustcp.close()
@@ -1386,7 +1350,7 @@ class GasControl:
     def get_heating_rate(self):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = format(self.modbustcp.read_holding_registers(35)[0]*0.1, ".1f")
+        regs_list_1 = f"{self.modbustcp.read_holding_registers(35)[0]*0.1: .1f}"
         # print(regs_list_1)
         # print(f"Heating rate = {regs_list_1} degC/min")
         self.modbustcp.close()
@@ -1480,7 +1444,7 @@ class GasControl:
             # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             # print("\033[K", end="")  # Clear the current line
             print("-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {format(current_sp, ".1f")} C | Programmer Temp: {format(temp_programmer, ".1f")} C | Reactor Temp: {format(temp_tc, ".1f")} C | Power out: {format(power_out, ".1f")}%\n",
+                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}%\n",
                 "-----------------------------------------------------------------------------------------------------")
             print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             print("\033[K", end="")  # Clear the current line
@@ -1543,7 +1507,7 @@ class GasControl:
             # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             # print("\033[K", end="")  # Clear the current line
             print("-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {format(current_sp, ".1f")} C | Programmer Temp: {format(temp_programmer, ".1f")} C | Reactor Temp: {format(temp_tc, ".1f")} C | Power out: {format(power_out, ".1f")}%\n",
+                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}%\n",
                 "-----------------------------------------------------------------------------------------------------")
             print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             print("\033[K", end="")  # Clear the current line
@@ -1561,7 +1525,7 @@ class GasControl:
     def temperature_ramping_event(self, rate_sp = None, sp = None ):
         while True:
             try:
-                temp_tc = format(self.modbustcp.read_holding_registers(1)[0]*0.1, ".1f")
+                temp_tc = f"{self.modbustcp.read_holding_registers(1)[0]*0.1: .1f}"
             except (IOError, ValueError, TypeError):
                 continue
                 # print("Instrument response is invalid")
@@ -1617,14 +1581,14 @@ class GasControl:
                 temp_tc = self.modbustcp.read_holding_registers(1)[0]*0.1
                 self.pressure_report()            
                 print("-----------------------------------------------------------------------------------------------------\n",
-                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {format(temp_tc, ".1f")} degC\n",
+                f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc: .1f} degC\n",
                 "-----------------------------------------------------------------------------------------------------")
                 print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
                 print("\033[K", end="")  # Clear the current line
                 time.sleep(1)
             else:
                 print("-----------------------------------------------------------------------------------------------------\n",
-                f"Wait time of {time_in_seconds} seconds at {format(temp_tc, ".1f")} degC completed.",
+                f"Wait time of {time_in_seconds} seconds at {temp_tc: .1f} degC completed.",
                 "-------------------------------------------------------------------\n",
                 "-----------------------------------------------------------------------------------------------------", end="\r")
                 break
@@ -1740,15 +1704,15 @@ class GasControl:
     
     def heating_event_rs232(self, rate_sp = None, sp = None):
         """Loops over actual temperature in an heating event until setpoint is reached"""
-        print('Starting heating event:')
+        print("Starting heating event:")
         try:
-            print('Heating rate: {} C/min'.format(rate_sp))
+            print(f"Heating rate: {rate_sp} C/min")
             rate_sp = float(rate_sp)
             self.tmp_master.write_register(35, rate_sp, 1)
         except:
             rate_sp = None      
         try:
-            print('Setpoint: {} C'.format(sp))
+            print(f"Setpoint: {sp} C")
             sp = float(sp)
             self.tmp_master.write_register(24, sp, 1)
         except:
@@ -1776,7 +1740,7 @@ class GasControl:
                     print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")                
                     time.sleep(1)
                 else:
-                    print('{} C setpoint reached!'.format(sp))
+                    print(f"{sp} C setpoint reached!")
                     break
             except TypeError:
                 continue
@@ -1785,15 +1749,15 @@ class GasControl:
     def cooling_event_rs232(self, rate_sp = None, sp = None):
         """Loops over actual temperature in an cooling event until setpoint is reached"""
     
-        print('Starting cooling event:')
+        print("Starting cooling event:")
         try:
-            print('Heating rate: {} C/min'.format(rate_sp))
+            print(f"Heating rate: {rate_sp} C/min")
             rate_sp = float(rate_sp)
             self.tmp_master.write_register(35, rate_sp, 1)
         except:
             rate_sp = None      
         try:
-            print('Setpoint: {} C'.format(sp))
+            print(f"Setpoint: {sp} C")
             sp = float(sp)
             self.tmp_master.write_register(2, sp, 1)
         except:
@@ -1821,7 +1785,7 @@ class GasControl:
                     print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")                
                     time.sleep(1)
                 else:
-                    print('{} C setpoint reached!'.format(sp))
+                    print(f"{sp} C setpoint reached!")
                     break
             except TypeError:
                 continue
@@ -1854,16 +1818,16 @@ class GasControl:
         rate_sp=10
         sp=18
     
-        print('adjust temperature set point to 18C:')
+        print("adjust temperature set point to 18C:")
         try:
-            print('cooling rate: {} C/min'.format(rate_sp))
+            print(f"cooling rate: {rate_sp} C/min")
             rate_sp = float(rate_sp)
             self.tmp_master.write_register(35, rate_sp, 1)
         except:
             rate_sp = None
       
         try:
-            print('Setpoint: {} C'.format(sp))
+            print(f"Setpoint: {sp} C")
             sp = float(sp)
             self.tmp_master.write_register(24, sp, 1)
         except:
