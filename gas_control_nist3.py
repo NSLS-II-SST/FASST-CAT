@@ -24,7 +24,7 @@ from pyModbusTCP.utils import encode_ieee, decode_ieee, \
 
 import json
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 
@@ -39,7 +39,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class GasControl:
     def __init__(
         self,
-        config_file = 'config.json'
+        config_file = "config.json"
     ) -> None:
         """Initialize the valve control device
         You can specify the HID or the comport of the valve control device
@@ -55,19 +55,19 @@ class GasControl:
             tmp_comport (str): Comport of the temperature controller device [default: None]
         """
 
-        with open(config_file, 'r') as file:
+        with open(config_file, "r") as file:
             config = json.load(file)
 
-        self.valves_hid = config['HID_VALVE']
-        self.valves_comport = config['COM_VALVE']
-        self.mfc_hid = config['HID_MFC']
-        self.mfc_comport = config['COM_MFC']
-        self.tmp_hid = config['HID_TMP']
-        self.tmp_com = config['COM_TMP']
-        self.baud_mfc = config['BAUD_MFC']
-        self.sub_add_tmp = config['SUB_ADD_TMP']
-        self.host_euro = config['HOST_EURO']
-        self.port_euro = config['PORT_EURO']
+        self.valves_hid = config["HID_VALVE"]
+        self.valves_comport = config["COM_VALVE"]
+        self.mfc_hid = config["HID_MFC"]
+        self.mfc_comport = config["COM_MFC"]
+        self.tmp_hid = config["HID_TMP"]
+        self.tmp_com = config["COM_TMP"]
+        self.baud_mfc = config["BAUD_MFC"]
+        self.sub_add_tmp = config["SUB_ADD_TMP"]
+        self.host_euro = config["HOST_EURO"]
+        self.port_euro = config["PORT_EURO"]
 
 
         self.init_valves_comport()
@@ -189,16 +189,16 @@ class GasControl:
                 break
             buffer.append(data)  # Add the received line to the buffer  
         
-        # Split each item at '\r' character to create separate lines
-        lines = [item.split('\r') for item in buffer]
+        # Split each item at "\r" character to create separate lines
+        lines = [item.split("\r") for item in buffer]
         # print(lines)
 
         # Flatten the list of lines into a single list
         lines = [line for sublist in lines for line in sublist]
         # print(lines)
 
-        # Combine the lines with newline character '\n'
-        output = '\n'.join(lines)
+        # Combine the lines with newline character "\n"
+        output = "\n".join(lines)
 
         # Print the output
         print(output)
@@ -313,7 +313,7 @@ class GasControl:
     def carrier_He_A(self):
         """Fuction that selects He as carrier gas for the Gas Line A"""
         self.move_valve_to_position("G", "OFF")
-        # self.ser.write(b'/GCW\r')
+        # self.ser.write("b/GCW\r")
         print("Feeding He to Gas Line A")
 
     def carrier_Ar_A(self):
@@ -1294,6 +1294,91 @@ class GasControl:
 
             print("------------------------------------------------------------")
 
+    def flowsms_status2(self, delay=0.0, verbose=True):
+        """Function that reads the flow rates of the gases in the Flow-SMS mass flow controllers
+
+        Args:
+            delay (float): Delay time in seconds before reading the flow rates [default: 0.0]
+        """
+        time.sleep(delay)
+
+        # Define gas parameters with respective gas IDs and names
+        gas_params = {
+            "H2_A": ("H2_A", "D2_A"),
+            "H2_B": ("H2_B", "D2_B"),
+            "O2_A": ("O2_A",),
+            "O2_B": ("O2_B",),
+            "CH4_A": ("CH4_A", "C2H6_A", "C3H8_A"),
+            "CH4_B": ("CH4_B", "C2H6_B", "C3H8_B"),
+            "CO_AH": ("CO_AH", "CO2_AH", "CO2_AL", "CO_AL"),
+            "CO_BH": ("CO_BH", "CO2_BH", "CO2_BL", "CO_BL"),
+            "He_A": ("He", "Ar", "N2"),
+            "He_B": ("He", "Ar", "N2")
+        }
+
+        # Pressure parameters
+        params_p_a = [{"node": 3, "proc_nr": 33, "parm_nr": 0, "parm_type": propar.PP_TYPE_FLOAT}]
+        params_p_b = [{"node": 14, "proc_nr": 33, "parm_nr": 0, "parm_type": propar.PP_TYPE_FLOAT}]
+
+        # Initialize lists for storing the read values
+        values_dict = {}
+
+        # Read and store parameters for each gas
+        for gas_key, fluid_types in gas_params.items():
+            params = self.generate_params(self.gas_ID[gas_key])
+            values = self.mfc_master.read_parameters(params)
+
+            lst = []
+            for value in values:
+                if "data" in value:
+                    flow = value.get("data")
+                lst.append(f"{flow: .2f}")
+
+            # Store the corresponding fluid type
+            fluid_value = float(lst[2]) if len(fluid_types) > 1 else None
+            if fluid_value is not None:
+                fluid = fluid_types[int(fluid_value)]  # Pick based on the value
+            else:
+                fluid = fluid_types[0]
+
+            values_dict[gas_key] = (lst, fluid)
+
+        # Read and store pressure values
+        values_p_a = self.mfc_master.read_parameters(params_p_a)
+        values_p_b = self.mfc_master.read_parameters(params_p_b)
+        lst_p_a = f"{values_p_a[0].get('data'): .2f}"
+        lst_p_b = f"{values_p_b[0].get('data'): .2f}"
+
+        # Calculate percentage values for the actual flows
+        total_flow_a = sum(float(values_dict[gas][0][0]) for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"])
+        total_flow_b = sum(float(values_dict[gas][0][0]) for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"])
+
+        # Concentration percentages for gases on line A and B
+        percentages_a = {gas: f"{(float(values_dict[gas][0][0]) / total_flow_a) * 100: .1f}" for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A"]}
+        percentages_b = {gas: f"{(float(values_dict[gas][0][0]) / total_flow_b) * 100: .1f}" for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B"]}
+
+        # Creating and printing table with the actual and set flows, and line pressures
+        if verbose:
+            print(" ")
+            print("------------------------------------------------------------")
+            print("-------------------")
+            print("--- Flow Report ---")
+            print("-------------------")
+
+            for gas_key, (lst, fluid) in values_dict.items():
+                setpoint = lst[1]
+                if float(setpoint) != 0:
+                    print(f"{fluid}: measured flow is {lst[0]} sccm. Flow setpoint is {setpoint} sccm.")
+            
+            print(f"Total flow line A: {total_flow_a} sccm")
+            print(f"Total flow line B: {total_flow_b} sccm")
+            print("-----------------------")
+            print("--- Pressure Report ---")
+            print("-----------------------")
+            print(f"Pressure in line A: {lst_p_a} psia")
+            print(f"Pressure in line B: {lst_p_b} psia")
+            print("------------------------------------------------------------")
+    
     def pressure_report(self):
         values_p_a = self.mfc_master.read_parameters([{"node": 3,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
         p_a_dict = values_p_a[0]
@@ -1434,7 +1519,7 @@ class GasControl:
             
             # Compare temperature with setpoint
             if temp_tc >= current_sp:
-                print(f'{current_sp} C setpoint reached!')
+                print(f"{current_sp} C setpoint reached!")
                 break
 
             # Log heating progress
@@ -1497,7 +1582,7 @@ class GasControl:
             
             # Compare temperature with setpoint
             if temp_tc <= current_sp:
-                print(f'{current_sp} C setpoint reached!')
+                print(f"{current_sp} C setpoint reached!")
                 break
 
             # Log heating progress
@@ -1533,11 +1618,11 @@ class GasControl:
                 result = float(temp_tc) > float(sp)
                 if result == True:
                     self.cooling_event(rate_sp, sp)
-                    print('Starting cooling event')
+                    print("Starting cooling event")
                     break
                 else:
                     self.heating_event(rate_sp, sp)
-                    print('Starting heating event')
+                    print("Starting heating event")
                     break
             except TypeError:
                 continue
@@ -1564,7 +1649,7 @@ class GasControl:
             print(f"Error writing setpoint: {e}")
             rate = None
     
-        print('Adjust temperature set point to 20C:')
+        print("Adjust temperature set point to 20C:")
         print(f"Cooling rate: {rate} C/min")
         print(f"Setpoint: {sp} C")
 
@@ -1633,7 +1718,7 @@ class GasControl:
         except Exception as e:
             print(f"Error writing setpoint: {e}")
             ms_on = None
-        print('MS recipe started')
+        print("MS recipe started")
         self.modbustcp.close()
     
     def MS_OFF(self):
@@ -1646,7 +1731,7 @@ class GasControl:
         except Exception as e:
             print(f"Error writing setpoint: {e}")
             ms_on = None
-        print('MS recipe finished')
+        print("MS recipe finished")
         self.modbustcp.close()
     
     def IR_ON(self):
@@ -1658,30 +1743,30 @@ class GasControl:
         self.modbustcp.write_single_register(376,0)
         # value_low = self.modbustcp.read_holding_registers(376)[0]
         # print(value_low)
-        print('IR data acquisition started')
+        print("IR data acquisition started")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def pulse_ON(self):
         """Sends 3V to perform remote triggering to logic A"""    
         self.modbustcp.write_single_register(376,3)
         #sleep(1)
         #self.write_register(376, 0)
-        print('Pulse ON')
+        print("Pulse ON")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def pulse_OFF(self):
         """Sends 0V to perform remote triggering to logic A"""    
         self.modbustcp.write_single_register(376,0)
         #sleep(1)
         #self.write_register(376, 0)
-        print('Pulse OFF')
+        print("Pulse OFF")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def IR_STATUS(self):
         """Sends 5V to perform remote triggering to logic A"""    
@@ -1804,11 +1889,11 @@ class GasControl:
                 result = float(temp_pv) > float(sp)
                 if result == True:
                     self.cooling_event_rs232(rate_sp, sp)
-                    print('start cooling event')
+                    print("Start of cooling event")
                     break
                 else:
                     self.heating_event_rs232(rate_sp, sp)
-                    print('start heating event')
+                    print("Start of heating event")
                     break
             except TypeError:
                 continue
@@ -1894,43 +1979,43 @@ class GasControl:
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
         self.tmp_master.write_register(363, 1)
         time.sleep(10)
-        print('MS sequence started')
+        print("MS sequence started")
     
     def MS_OFF_rs232(self):
         """Sends a logic value (0 or 1) to perform remote digital triggering to RlyAA"""
         self.tmp_master.write_register(363, 0)
         time.sleep(10)
-        print('MS sequence stopped')
+        print("MS sequence stopped")
     
     def IR_ON_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 5)
         time.sleep(1)
         self.tmp_master.write_register(376, 0)
-        print('IR data acquisition started')
+        print("IR data acquisition started")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def pulse_ON_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 3)
         #sleep(1)
         #self.write_register(376, 0)
-        print('Pulse ON')
+        print("Pulse ON")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def pulse_OFF_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
         self.tmp_master.write_register(376, 0)
         #sleep(1)
         #self.write_register(376, 0)
-        print('Pulse OFF')
+        print("Pulse OFF")
         now = datetime.now()
         dt_start = now.strftime("%m/%d/%Y %H:%M:%S")
-        print('\ndate and time =', dt_start)
+        print("\ndate and time =", dt_start)
     
     def IR_STATUS_rs232(self):
         """Sends 5V to perform remote triggering to logic A"""    
