@@ -16,6 +16,8 @@ class HidenHPR20Interface:
         self.full_path = os.path.join(self.file_path, self.file_name)
         self.host = 'localhost'
         self.port = 5026
+        self.out_terminator = "\r\n"
+        self.in_terminator = "\r\n"
         self.fig, self.ax = plt.subplots()
         self.full_dataset = pd.DataFrame()
         self.ani = None
@@ -83,11 +85,12 @@ class HidenHPR20Interface:
     #         print(parsed_data)
     #         # print(self.parse_data(view_num, all_data))
 
-    def data_collecting_loop(self, view_num, hdf5_file='data.h5', dataset_name='mass_spectrometer_data'):
+    def data_collecting_loop(self, view_num, hdf5_file='data3.h5', dataset_name='mass_spectrometer_data'):
+        headers = self.data_headers2(view_num)
         self.open_socket()
         self.open_file()
         parsed_data = []
-        
+
         # Open HDF5 file in append mode
         with pd.HDFStore(hdf5_file, mode='a') as store:
             try:
@@ -95,7 +98,7 @@ class HidenHPR20Interface:
                     raw_data = self.send_command(f"-lData -v{view_num}")
                     if raw_data != '0':
                         print(raw_data)
-                        lines = raw_data.strip().split('\n')
+                        lines = raw_data.strip().split('\r\n')
                         for line in lines:
                             if line.strip() == '0':
                                 print("Ignoring first line with '0'.")
@@ -109,20 +112,22 @@ class HidenHPR20Interface:
 
                         if parsed_data:
                             # Convert parsed data to DataFrame
-                            df = pd.DataFrame(parsed_data, columns=['Time', 'milisec', 'Value1', 'Value2', 'Value3', 'Value4', 'Value5', 'Value6', 'Value7', 'Value8'])
-                            
+                            df = pd.DataFrame(parsed_data, columns=headers)
+
                             # Append to HDF5 file
-                            df.to_hdf(store, key=dataset_name, mode='a', format='table', append=True, index=False)
+                            df.to_hdf(store, key=dataset_name, format='table', append=True, index=False)
                             print(df)
-                        else:
-                            print("No data parsed.")
-                            return pd.DataFrame()  # Return an empty DataFrame if no data
+                            
+                            # Reset parsed_data to avoid appending duplicate data
+                            parsed_data = []
+
                     time.sleep(5)
                     
             except KeyboardInterrupt:
                 print("Data collection stopped.")
                 print(parsed_data)
-
+            except Exception as e:
+                print(f"An error occurred: {e}")
     def data_headers(self, view_num):
         try:
             while True:
@@ -144,13 +149,64 @@ class HidenHPR20Interface:
     # Send a command through the socket
     def send_command(self, command):
         try:
-            self.sock.sendall(command.encode() + b'\n')
-            response = self.sock.recv(1024)
+            self.sock.sendall((command + self.out_terminator).encode())
+            response = self.sock.recv(4096)
             # print(f"Raw Response: {response}")  # Print raw response for debugging
-            return response.decode().strip()
+            decoded_response = response.decode().strip()
+            # print(decoded_response)
+            # split_response = decoded_response.split("\t")
+            # print(split_response)
+            return decoded_response
         except Exception as e:
             print(f"Failed to send command: {e}")
             return None
+    
+    def scan_parameters(self, view_num):
+        self.open_socket()
+        try:
+            while True:
+                raw_data = self.send_command(f"-lScanParameters -v{view_num} -d20")
+                time.sleep(1)
+                raw_data = self.send_command(f"-lScanParameters -v{view_num} -d20")
+                if raw_data != '0':
+                    data_stripped = raw_data.replace("\r\n", "\t").split("\t")
+                    headers = data_stripped[:11]
+                    rows = [data_stripped[i:i+11] for i in range(11, len(data_stripped), 11)]
+                    data_dict = {header: [] for header in headers}
+                    for row in rows:
+                        for i, header in enumerate(headers):
+                            data_dict[header].append(row[i])
+                    ## Print number of items in table
+                    # first_key = list(data_dict.keys())[0]
+                    # item_count = len(data_dict[first_key])
+                    # print(f"The first key '{first_key}' has {item_count} items.")
+                    ## Print a new dictionary with values for Scan "n"
+                    # scanpar1 = {key: value[0] for key, value in scanpar.items()}
+                    # print(scanpar1)
+                    break
+                else:
+                    time.sleep(1)                
+        except KeyboardInterrupt:
+            print("Done.")
+        self.close_socket()
+        return data_dict
+    
+    def data_headers2(self, view_num):
+        self.open_socket()
+        try:
+            while True:
+                raw_data = self.send_command(f"-lLegends -v{view_num} -d20")
+                time.sleep(1)
+                raw_data = self.send_command(f"-lLegends -v{view_num} -d20")
+                if raw_data != '0':
+                    data_stripped = raw_data.replace("\r\n", "\t").split("\t")
+                    break
+                else:
+                    time.sleep(1)                
+        except KeyboardInterrupt:
+            print("Done.")
+        self.close_socket()
+        return data_stripped
 
     def parse_data(self, view_num, data):
         # print("Raw Data Received:")
