@@ -15,6 +15,8 @@ import serial
 from serial.tools import list_ports
 from datetime import datetime
 import logging
+from functools import wraps
+import threading
 
 import propar
 import minimalmodbus
@@ -23,6 +25,7 @@ from pyModbusTCP.utils import encode_ieee, decode_ieee, \
                               long_list_to_word, word_list_to_long
 
 import json
+import platform
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -35,6 +38,45 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # ██║     ██║  ██║███████║███████║   ██║   ╚██████╗██║  ██║   ██║   
 # ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝    ╚═════╝╚═╝  ╚═╝   ╚═╝   
    
+
+def pressure_alarm(pressure_threshold = 30):
+    def decorator(func):
+        def wrapper(self, *args, **kwargs):
+            # Flag to signal when the monitored method has finished
+            finished = threading.Event()
+
+            # Define a background function to monitor the pressure
+            def monitor_pressure():
+                while not finished.is_set():
+                    # Read the pressure values
+                    p_a, p_b = self.pressure_report()                    
+                    # Check if either pressure exceeds the threshold
+                    if p_a > pressure_threshold or p_b > pressure_threshold:
+                        self.flowsms_setpoints()  # Trigger adjustment if above threshold
+                        print("!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              "!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              f"Pressure in Line A = {p_a} psia, Line B = {p_b} psia.\n",
+                              "Taking the system to zero flow and room temperature")
+                        finished.set()  # Stop monitoring if alarm is triggered
+                        self.setpoint_finish_experiment()
+                        return
+                    time.sleep(1)  # Check every second
+
+            # Start monitoring in a separate thread
+            monitor_thread = threading.Thread(target=monitor_pressure)
+            monitor_thread.start()
+            
+            try:
+                # Execute the main function while monitoring continues in the background
+                result = func(self, *args, **kwargs)
+            finally:
+                # Signal the monitor thread to stop after the function completes
+                finished.set()
+                monitor_thread.join()  # Ensure the monitor thread completes
+            
+            return result
+        return wrapper
+    return decorator
 
 class GasControl:
     def __init__(
@@ -58,12 +100,22 @@ class GasControl:
         with open(config_file, "r") as file:
             config = json.load(file)
 
-        self.valves_hid = config["HID_VALVE"]
-        self.valves_comport = config["COM_VALVE"]
-        self.mfc_hid = config["HID_MFC"]
-        self.mfc_comport = config["COM_MFC"]
-        self.tmp_hid = config["HID_TMP"]
-        self.tmp_com = config["COM_TMP"]
+        # Detect the OS and adjust serial port naming with proper numbering
+        if platform.system() == "Windows":
+            self.valves_hid = config["HID_VALVE"]
+            self.valves_comport = config["COM_VALVE"]
+            self.mfc_hid = config["HID_MFC"]
+            self.mfc_comport = config["COM_MFC"]
+            self.tmp_hid = config["HID_TMP"]
+            self.tmp_com = config["COM_TMP"]
+        else:  # Assume Linux (e.g., RHEL)
+            # Adjust the numbering: COMx in Windows -> ttyS(x-1) in Linux
+            self.valves_hid = f"/dev/ttyS{int(config['HID_VALVE'][-1]) - 1}"
+            self.valves_comport = f"/dev/ttyS{int(config['COM_VALVE'][-1]) - 1}"
+            self.mfc_hid = f"/dev/ttyS{int(config['HID_MFC'][-1]) - 1}"
+            self.mfc_comport = f"/dev/ttyS{int(config['COM_MFC'][-1]) - 1}"
+            self.tmp_hid = f"/dev/ttyS{int(config['HID_TMP'][-1]) - 1}"
+            self.tmp_com = f"/dev/ttyS{int(config['COM_TMP'][-1]) - 1}"
         self.baud_mfc = config["BAUD_MFC"]
         self.sub_add_tmp = config["SUB_ADD_TMP"]
         self.host_euro = config["HOST_EURO"]
@@ -1002,6 +1054,53 @@ class GasControl:
         self.set_flowrate("O2_A", O2_A)
 
         self.set_flowrate("O2_B", O2_B)
+        # self.flowsms_status2(5)
+
+    def flowsms_setpoints2(
+        self,
+        H2_A: float = None, D2_A: float = None,
+        O2_A: float = None, CO_AH: float = None,
+        CO2_AH: float = None, CO_AL: float = None,
+        CO2_AL: float = None, CH4_A: float = None,
+        C2H6_A: float = None, C3H8_A: float = None,
+        He_A: float = None, Ar_A: float = None,
+        N2_A: float = None, He_B: float = None,
+        Ar_B: float = None, N2_B: float = None,
+        CH4_B: float = None, C2H6_B: float = None,
+        C3H8_B: float = None, CO_BH: float = None,
+        CO2_BH: float = None, CO_BL: float = None,
+        CO2_BL: float = None, O2_B: float = None,
+        H2_B: float = None, D2_B: float = None,
+    ):
+        """Sets flow rates for gases in the Flow-SMS mass flow controllers."""
+
+        # Group parameters by alternatives in priority order
+        gas_alternatives = {
+            "CO_A": [CO_AH, CO_AL, CO2_AH, CO2_AL],
+            "CO_B": [CO_BH, CO_BL, CO2_BH, CO2_BL],
+            "CH4_A": [CH4_A, C2H6_A, C3H8_A],
+            "CH4_B": [CH4_B, C2H6_B, C3H8_B],
+            "H2_A": [H2_A, D2_A],
+            "H2_B": [H2_B, D2_B],
+            "He_A": [He_A, Ar_A, N2_A],
+            "He_B": [He_B, Ar_B, N2_B],
+            "O2_A": [O2_A],
+            "O2_B": [O2_B]
+        }
+
+        # Helper function to set the first valid flow rate found in alternatives
+        def set_first_available(gas_key, alternatives):
+            for flow in alternatives:
+                if flow is not None and flow > 0.0:
+                    self.set_flowrate(gas_key, flow)
+                    return
+
+        # Iterate through gases and set flow rates for the first available option
+        for gas_key, alternatives in gas_alternatives.items():
+            set_first_available(gas_key, alternatives)
+
+        # Prints the new flowrates
+        # self.flowsms_status2(6)
 
     def generate_params(self, node_id):
         """Helper function that creates the dictionary with the values to pull from devices
@@ -1316,10 +1415,6 @@ class GasControl:
             "He_B": ("He", "Ar", "N2")
         }
 
-        # Pressure parameters
-        params_p_a = [{"node": 3, "proc_nr": 33, "parm_nr": 0, "parm_type": propar.PP_TYPE_FLOAT}]
-        params_p_b = [{"node": 14, "proc_nr": 33, "parm_nr": 0, "parm_type": propar.PP_TYPE_FLOAT}]
-
         # Initialize lists for storing the read values
         values_dict = {}
 
@@ -1343,19 +1438,14 @@ class GasControl:
 
             values_dict[gas_key] = (lst, fluid)
 
-        # Read and store pressure values
-        values_p_a = self.mfc_master.read_parameters(params_p_a)
-        values_p_b = self.mfc_master.read_parameters(params_p_b)
-        lst_p_a = f"{values_p_a[0].get('data'): .2f}"
-        lst_p_b = f"{values_p_b[0].get('data'): .2f}"
-
         # Calculate percentage values for the actual flows
-        total_flow_a = sum(float(values_dict[gas][0][0]) for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"])
-        total_flow_b = sum(float(values_dict[gas][0][0]) for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"])
+        total_flow_a = f"{(sum(float(values_dict[gas][0][0]) for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"])): .2f}"
+        total_flow_b = f"{(sum(float(values_dict[gas][0][0]) for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"])): .2f}"
 
         # Concentration percentages for gases on line A and B
-        percentages_a = {gas: f"{(float(values_dict[gas][0][0]) / total_flow_a) * 100: .1f}" for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A"]}
-        percentages_b = {gas: f"{(float(values_dict[gas][0][0]) / total_flow_b) * 100: .1f}" for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B"]}
+        percentages_a = {gas: f"{(float(values_dict[gas][0][0]) / float(total_flow_a)) * 100: .1f}" for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"]}
+        percentages_b = {gas: f"{(float(values_dict[gas][0][0]) / float(total_flow_b)) * 100: .1f}" for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"]}
+
 
         # Creating and printing table with the actual and set flows, and line pressures
         if verbose:
@@ -1364,29 +1454,28 @@ class GasControl:
             print("-------------------")
             print("--- Flow Report ---")
             print("-------------------")
-
             for gas_key, (lst, fluid) in values_dict.items():
                 setpoint = lst[1]
                 if float(setpoint) != 0:
-                    print(f"{fluid}: measured flow is {lst[0]} sccm. Flow setpoint is {setpoint} sccm.")
+                    concentration = percentages_a[gas_key] if gas_key.endswith("_A") else percentages_b[gas_key]
+                    print(f"{fluid}: measured flow is {lst[0]} sccm, Flow setpoint is {setpoint} sccm, Concentration is {concentration} %.")
             
             print(f"Total flow line A: {total_flow_a} sccm")
             print(f"Total flow line B: {total_flow_b} sccm")
             print("-----------------------")
             print("--- Pressure Report ---")
             print("-----------------------")
-            print(f"Pressure in line A: {lst_p_a} psia")
-            print(f"Pressure in line B: {lst_p_b} psia")
+            self.pressure_report(verbose=True)
             print("------------------------------------------------------------")
-    
-    def pressure_report(self):
+     
+    def pressure_report(self, verbose: bool = False):
         values_p_a = self.mfc_master.read_parameters([{"node": 3,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
-        p_a_dict = values_p_a[0]
-        p_a = f"{p_a_dict.get("data"): .2f}"
+        self.p_a = float(f"{values_p_a[0]['data']: .2f}")
         values_p_b = self.mfc_master.read_parameters([{"node": 14,"proc_nr": 33,"parm_nr": 0,"parm_type": propar.PP_TYPE_FLOAT}])
-        p_b_dict = values_p_b[0]
-        p_b = f"{p_b_dict.get("data"): .2f}"
-        print(f"P_A = {p_a} psia\nP_B = {p_b} psia\n")
+        self.p_b = float(f"{values_p_b[0]['data']: .2f}")
+        if verbose is True:            
+            print(f"Pressure in Line A = {self.p_a} psia\nPressure in Line B = {self.p_b} psia")
+        return self.p_a, self.p_b
 
     
     # ███████╗██╗   ██╗██████╗  ██████╗ ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗
@@ -1396,48 +1485,68 @@ class GasControl:
     # ███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║
     # ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
                                                                                 
-    def get_temp_wsp(self):
+    def get_temp_wsp(self, verbose=False):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = f"{self.modbustcp.read_holding_registers(2)[0]*0.1: .1f}"
-        # print(regs_list_1)
-        # print(f"WSP Temp = {regs_list_1} degC")
+        try:
+            regs_list_1 = f"{self.modbustcp.read_holding_registers(2)[0]*0.1: .1f}"
+        except:
+            regs_list_1 = None
+        if verbose == True:
+            print(regs_list_1)
+            print(f"WSP Temp = {regs_list_1} degC")
         self.modbustcp.close()
         return regs_list_1
 
-    def get_temp_tc(self):
+    def get_temp_tc(self, verbose=False):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = f"{self.modbustcp.read_holding_registers(1)[0]*0.1: .1f}"
-        # print(regs_list_1)
-        # print(f"TC Temp = {regs_list_1} degC")
+        try:
+            regs_list_1 = f"{self.modbustcp.read_holding_registers(1)[0]*0.1: .1f}"
+        except:
+            regs_list_1 = None
+        if verbose == True:
+            print(regs_list_1)
+            print(f"TC Temp = {regs_list_1} degC")
         self.modbustcp.close()
         return regs_list_1
 
-    def get_temp_prog(self):
+    def get_temp_prog(self, verbose=False):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = f"{self.modbustcp.read_holding_registers(5)[0]*0.1: .1f}"
-        # print(regs_list_1)
-        # print(f"Prog Temp = {regs_list_1} degC")
+        try:
+            regs_list_1 = f"{self.modbustcp.read_holding_registers(5)[0]*0.1: .1f}"
+        except:
+            regs_list_1 = None
+        if verbose == True:
+            print(regs_list_1)
+            print(f"Prog Temp = {regs_list_1} degC")
         self.modbustcp.close()
         return regs_list_1
 
-    def get_pw_prog(self):
+    def get_pw_prog(self, verbose=False):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = f"{self.modbustcp.read_holding_registers(85)[0]*0.1: .1f}"
-        # print(regs_list_1)
-        # print(f"Prog Power = {regs_list_1}%")
+        try:
+            regs_list_1 = f"{self.modbustcp.read_holding_registers(85)[0]*0.1: .1f}"
+        except:
+            regs_list_1 = None
+        if verbose == True:
+            print(regs_list_1)
+            print(f"Prog Power = {regs_list_1}%")
         self.modbustcp.close()
         return regs_list_1
 
-    def get_heating_rate(self):
+    def get_heating_rate(self, verbose=False):
         """Return the process value (PV) for loop1."""
         self.modbustcp.open()
-        regs_list_1 = f"{self.modbustcp.read_holding_registers(35)[0]*0.1: .1f}"
-        # print(regs_list_1)
-        # print(f"Heating rate = {regs_list_1} degC/min")
+        try:
+            regs_list_1 = f"{self.modbustcp.read_holding_registers(35)[0]*0.1: .1f}"
+        except:
+            regs_list_1 = None
+        if verbose == True:
+            print(regs_list_1)
+            print(f"Heating rate = {regs_list_1} degC/min")
         self.modbustcp.close()
         return regs_list_1
 
@@ -1452,6 +1561,7 @@ class GasControl:
             print(f"Error writing setpoint: {e}")
             sp = None
         self.modbustcp.close()
+        return True
 
     def write_heating_rate(self, rate):
         """Return the process value (PV) for loop1."""
@@ -1464,6 +1574,7 @@ class GasControl:
             print(f"Error writing setpoint: {e}")
             rate = None
         self.modbustcp.close()
+        return True
 
 
     def retry_write(self,register, value, description, max_retries=5, retry_delay=1):
@@ -1481,6 +1592,7 @@ class GasControl:
         print(f"Failed to write {description} to register {register} after {max_retries} attempts")
         return False
 
+    @pressure_alarm()
     def heating_event(self, rate_sp=None, sp=None, max_duration=600):
         """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
@@ -1514,7 +1626,7 @@ class GasControl:
                 power_out = registers[85] * 0.1  # Power output (register 85)
                 current_sp = registers[2] * 0.1  # Setpoint (register 2)
                 
-            except (IOError, ValueError, TypeError):
+            except (IOError, None, ValueError, TypeError):
                 continue  # You can log these for debugging purposes if necessary
             
             # Compare temperature with setpoint
@@ -1522,16 +1634,17 @@ class GasControl:
                 print(f"{current_sp} C setpoint reached!")
                 break
 
-            # Log heating progress
-            self.pressure_report()
-
+            self.p_a, self.p_b = self.pressure_report()
             # Overprint previous output for a clean display in terminal
             # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             # print("\033[K", end="")  # Clear the current line
             print("-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}%\n",
+                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
+                f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
+                "-----------------------------------------------------------------------------------------------------\n",
+                f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
                 "-----------------------------------------------------------------------------------------------------")
-            print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             print("\033[K", end="")  # Clear the current line
             
             # Calculate elapsed time and check against max duration
@@ -1544,6 +1657,7 @@ class GasControl:
 
         self.modbustcp.close()
 
+    @pressure_alarm()
     def cooling_event(self, rate_sp=None, sp=None, max_duration=600):
         """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
@@ -1577,7 +1691,7 @@ class GasControl:
                 power_out = registers[85] * 0.1  # Power output (register 85)
                 current_sp = registers[2] * 0.1  # Setpoint (register 2)
                 
-            except (IOError, ValueError, TypeError):
+            except (None, IOError, ValueError, TypeError):
                 continue  # You can log these for debugging purposes if necessary
             
             # Compare temperature with setpoint
@@ -1585,16 +1699,15 @@ class GasControl:
                 print(f"{current_sp} C setpoint reached!")
                 break
 
-            # Log heating progress
-            self.pressure_report()
+            self.p_a, self.p_b = self.pressure_report()
 
-            # Overprint previous output for a clean display in terminal
-            # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
-            # print("\033[K", end="")  # Clear the current line
             print("-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}%\n",
+                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
+                f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
+                "-----------------------------------------------------------------------------------------------------\n",
+                f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
                 "-----------------------------------------------------------------------------------------------------")
-            print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+            print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
             print("\033[K", end="")  # Clear the current line
             
             # Calculate elapsed time and check against max duration
@@ -1611,7 +1724,7 @@ class GasControl:
         while True:
             try:
                 temp_tc = f"{self.modbustcp.read_holding_registers(1)[0]*0.1: .1f}"
-            except (IOError, ValueError, TypeError):
+            except (None, IOError, ValueError, TypeError):
                 continue
                 # print("Instrument response is invalid")
             try:
@@ -1650,9 +1763,10 @@ class GasControl:
             rate = None
     
         print("Adjust temperature set point to 20C:")
-        print(f"Cooling rate: {rate} C/min")
-        print(f"Setpoint: {sp} C")
+        print(f"Cooling rate: {rate*0.1} C/min")
+        print(f"Setpoint: {sp*0.1} C")
 
+    @pressure_alarm()
     def time_event(self, time_in_seconds: int, argument: str):
         """Waits for a specified time while printing the elapsed time on the terminal.
 
@@ -1663,12 +1777,17 @@ class GasControl:
         while True:
             elapsed_time = time.time() - start_time
             if elapsed_time < time_in_seconds:
-                temp_tc = self.modbustcp.read_holding_registers(1)[0]*0.1
-                self.pressure_report()            
+                try:
+                    temp_tc = self.modbustcp.read_holding_registers(1)[0]*0.1
+                except:
+                    temp_tc = None
+                self.p_a, self.p_b = self.pressure_report()            
                 print("-----------------------------------------------------------------------------------------------------\n",
                 f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc: .1f} degC\n",
+                "-----------------------------------------------------------------------------------------------------\n",
+                f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
                 "-----------------------------------------------------------------------------------------------------")
-                print("\033[F\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
                 print("\033[K", end="")  # Clear the current line
                 time.sleep(1)
             else:
@@ -1680,8 +1799,11 @@ class GasControl:
 
     def drift_mantis_pid(self):
         self.modbustcp.open()
-        self.modbustcp.write_multiple_registers(6,[869,0,96,16])
-        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        try:
+            self.modbustcp.write_multiple_registers(6,[869,0,96,16])
+            regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        except:
+            regs_list_2 = None
         p = regs_list_2[0]*0.1
         i = regs_list_2[2]
         d = regs_list_2[3]
@@ -1690,8 +1812,11 @@ class GasControl:
 
     def clausen_coil_local_pid(self):    
         self.modbustcp.open()
-        self.modbustcp.write_multiple_registers(6,[9876,0,96,16])
-        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        try:
+            self.modbustcp.write_multiple_registers(6,[9876,0,96,16])
+            regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        except:
+            regs_list_2 = None
         p = regs_list_2[0]*0.1
         i = regs_list_2[2]
         d = regs_list_2[3]
@@ -1700,8 +1825,11 @@ class GasControl:
         
     def clausen_coil_remote_pid(self):
         self.modbustcp.open()
-        self.modbustcp.write_multiple_registers(6,[6000,0,20,4])
-        regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        try:
+            self.modbustcp.write_multiple_registers(6,[6000,0,20,4])
+            regs_list_2 = self.modbustcp.read_holding_registers(6,4)
+        except:
+            regs_list_2 = None
         p = regs_list_2[0]*0.1
         i = regs_list_2[2]
         d = regs_list_2[3]

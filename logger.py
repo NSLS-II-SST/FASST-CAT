@@ -18,6 +18,6 @@ class Logger:
  
 now = datetime.now()
 dt_start = now.strftime('%Y%m%d%H%M%S')
-log_file = 'exp_log_{}.txt'.format(dt_start)
+log_file = f'exp_log_{dt_start}.txt'
 path = log_file
 sys.stdout = Logger(path)
