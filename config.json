@@ -12,5 +12,6 @@
     "HOST_HIDEN": "10.68.42.144",
     "PORT_HIDEN": 5026,
     "HOST_MOXA": "10.68.42.83",
-    "PORT_MOXA": 4002
+    "PORT_MOXA": 4002,
+    "PORT_VALVES": 4004
 }

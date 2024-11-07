@@ -30,7 +30,6 @@ import platform
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
-
 # ███████╗ █████╗ ███████╗███████╗████████╗ ██████╗ █████╗ ████████╗
 # ██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝██╔════╝██╔══██╗╚══██╔══╝
 # █████╗  ███████║███████╗███████╗   ██║   ██║     ███████║   ██║   
@@ -39,7 +38,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝    ╚═════╝╚═╝  ╚═╝   ╚═╝   
    
 
-def pressure_alarm(pressure_threshold = 30):
+def pressure_alarm(low_threshold = 10, high_threshold = 30):
+    """
+    Decorator function that keeps track of pressure for safe operation. It will trigger
+    an alarm if low or high pressure thresholds are exceeded. In the event of a trigger
+    all shutoff valves will be closed and the process temperature will be taken down to 20C
+
+    Args:
+    low_threshold (int): lower pressure limit trigger value in case of working under vacuum
+    high_theshold (int): higher pressure limit trigger value in case of a serious flow restriction event
+    """
     def decorator(func):
         def wrapper(self, *args, **kwargs):
             # Flag to signal when the monitored method has finished
@@ -51,12 +59,21 @@ def pressure_alarm(pressure_threshold = 30):
                     # Read the pressure values
                     p_a, p_b = self.pressure_report()                    
                     # Check if either pressure exceeds the threshold
-                    if p_a > pressure_threshold or p_b > pressure_threshold:
+                    if p_a > high_threshold or p_b > high_threshold:
                         self.flowsms_setpoints()  # Trigger adjustment if above threshold
-                        print("!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                              "!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                              f"Pressure in Line A = {p_a} psia, Line B = {p_b} psia.\n",
-                              "Taking the system to zero flow and room temperature")
+                        print("!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              "!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
+                              "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE")
+                        finished.set()  # Stop monitoring if alarm is triggered
+                        self.setpoint_finish_experiment()
+                        return
+                    elif p_a < low_threshold or p_b < low_threshold:
+                        self.flowsms_setpoints()  # Trigger adjustment if above threshold
+                        print("!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              "!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                              f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
+                              "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE")
                         finished.set()  # Stop monitoring if alarm is triggered
                         self.setpoint_finish_experiment()
                         return
@@ -108,8 +125,8 @@ class GasControl:
             self.mfc_comport = config["COM_MFC"]
             self.tmp_hid = config["HID_TMP"]
             self.tmp_com = config["COM_TMP"]
-        else:  # Assume Linux (e.g., RHEL)
-            # Adjust the numbering: COMx in Windows -> ttyS(x-1) in Linux
+        else:  # Assume Linux
+            # Adjust the numbering: COMx in Windows -> /dev/ttyS(x-1) in Linux
             self.valves_hid = f"/dev/ttyS{int(config['HID_VALVE'][-1]) - 1}"
             self.valves_comport = f"/dev/ttyS{int(config['COM_VALVE'][-1]) - 1}"
             self.mfc_hid = f"/dev/ttyS{int(config['HID_MFC'][-1]) - 1}"
@@ -120,7 +137,6 @@ class GasControl:
         self.sub_add_tmp = config["SUB_ADD_TMP"]
         self.host_euro = config["HOST_EURO"]
         self.port_euro = config["PORT_EURO"]
-
 
         self.init_valves_comport()
         print(f"Valve comport: {self.valves_comport}")
@@ -322,6 +338,7 @@ class GasControl:
         else:
             # print(f"Valve {valve} successfully moved to position {position}")
             pass
+
     def commands_list(self, valve):
         self.ser.write(f"/{valve}?\r".encode())        
         self.decode_serial_message()
@@ -1054,53 +1071,33 @@ class GasControl:
         self.set_flowrate("O2_A", O2_A)
 
         self.set_flowrate("O2_B", O2_B)
-        # self.flowsms_status2(5)
-
-    def flowsms_setpoints2(
-        self,
-        H2_A: float = None, D2_A: float = None,
-        O2_A: float = None, CO_AH: float = None,
-        CO2_AH: float = None, CO_AL: float = None,
-        CO2_AL: float = None, CH4_A: float = None,
-        C2H6_A: float = None, C3H8_A: float = None,
-        He_A: float = None, Ar_A: float = None,
-        N2_A: float = None, He_B: float = None,
-        Ar_B: float = None, N2_B: float = None,
-        CH4_B: float = None, C2H6_B: float = None,
-        C3H8_B: float = None, CO_BH: float = None,
-        CO2_BH: float = None, CO_BL: float = None,
-        CO2_BL: float = None, O2_B: float = None,
-        H2_B: float = None, D2_B: float = None,
-    ):
-        """Sets flow rates for gases in the Flow-SMS mass flow controllers."""
-
-        # Group parameters by alternatives in priority order
-        gas_alternatives = {
-            "CO_A": [CO_AH, CO_AL, CO2_AH, CO2_AL],
-            "CO_B": [CO_BH, CO_BL, CO2_BH, CO2_BL],
-            "CH4_A": [CH4_A, C2H6_A, C3H8_A],
-            "CH4_B": [CH4_B, C2H6_B, C3H8_B],
-            "H2_A": [H2_A, D2_A],
-            "H2_B": [H2_B, D2_B],
-            "He_A": [He_A, Ar_A, N2_A],
-            "He_B": [He_B, Ar_B, N2_B],
-            "O2_A": [O2_A],
-            "O2_B": [O2_B]
+    
+    def flowsms_setpoints2(self, **kwargs):
+        """Function to set flow rates for gases with any unspecified gases defaulting to zero."""
+        
+        gas_params = {
+            "H2_A": ("H2_A", "D2_A"),
+            "H2_B": ("H2_B", "D2_B"),
+            "O2_A": ("O2_A",),
+            "O2_B": ("O2_B",),
+            "CH4_A": ("CH4_A", "C2H6_A", "C3H8_A"),
+            "CH4_B": ("CH4_B", "C2H6_B", "C3H8_B"),
+            "CO_AH": ("CO_AH", "CO2_AH", "CO_AL", "CO2_AL"),
+            "CO_BH": ("CO_BH", "CO2_BH", "CO_BL", "CO2_BL"),
+            "He_A": ("He_A", "Ar_A", "N2_A"),
+            "He_B": ("He_B", "Ar_B", "N2_B")
         }
-
-        # Helper function to set the first valid flow rate found in alternatives
-        def set_first_available(gas_key, alternatives):
-            for flow in alternatives:
-                if flow is not None and flow > 0.0:
-                    self.set_flowrate(gas_key, flow)
-                    return
-
-        # Iterate through gases and set flow rates for the first available option
-        for gas_key, alternatives in gas_alternatives.items():
-            set_first_available(gas_key, alternatives)
-
-        # Prints the new flowrates
-        # self.flowsms_status2(6)
+        
+        # Loop to set each specified flow from kwargs
+        for gas_key, options in gas_params.items():
+            # Set flow for the specified gas, defaulting to the primary option if no specific choice
+            for option in options:
+                if option in kwargs and kwargs[option] is not None:
+                    self.set_flowrate(option, kwargs[option])
+                    break
+            else:
+                # No specified flowrate, set primary option to zero
+                self.set_flowrate(options[0], 0.0)
 
     def generate_params(self, node_id):
         """Helper function that creates the dictionary with the values to pull from devices
@@ -1411,8 +1408,8 @@ class GasControl:
             "CH4_B": ("CH4_B", "C2H6_B", "C3H8_B"),
             "CO_AH": ("CO_AH", "CO2_AH", "CO2_AL", "CO_AL"),
             "CO_BH": ("CO_BH", "CO2_BH", "CO2_BL", "CO_BL"),
-            "He_A": ("He", "Ar", "N2"),
-            "He_B": ("He", "Ar", "N2")
+            "He_A": ("He_A", "Ar_A", "N2_A"),
+            "He_B": ("He_B", "Ar_B", "N2_B")
         }
 
         # Initialize lists for storing the read values
@@ -1457,7 +1454,7 @@ class GasControl:
             for gas_key, (lst, fluid) in values_dict.items():
                 setpoint = lst[1]
                 if float(setpoint) != 0:
-                    concentration = percentages_a[gas_key] if gas_key.endswith("_A") else percentages_b[gas_key]
+                    concentration = percentages_a[gas_key] if (gas_key.endswith("_A") or gas_key.endswith("_AH") or gas_key.endswith("_AL")) else percentages_b[gas_key]
                     print(f"{fluid}: measured flow is {lst[0]} sccm, Flow setpoint is {setpoint} sccm, Concentration is {concentration} %.")
             
             print(f"Total flow line A: {total_flow_a} sccm")
@@ -1635,9 +1632,7 @@ class GasControl:
                 break
 
             self.p_a, self.p_b = self.pressure_report()
-            # Overprint previous output for a clean display in terminal
-            # print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
-            # print("\033[K", end="")  # Clear the current line
+
             print("-----------------------------------------------------------------------------------------------------\n",
                 f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
                 f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
@@ -2069,9 +2064,7 @@ class GasControl:
                 "-------------------------------------------------------------------\n",
                 "-----------------------------------------------------------------------------------------------------", end="\r")
                 break
-            
 
-    
     ## Remote Triggering
     # 
     # The slave register can hold integer values in the range 0 to 65535
@@ -2161,7 +2154,6 @@ class GasControl:
             elif result == 0:
                 time.sleep(0.1)
                 continue
-
 
 if __name__ == "__main__":
     gc = GasControl()
