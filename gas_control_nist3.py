@@ -11,6 +11,7 @@ By Jorge Moncada Vivas and contributions of Ryuichi Shimogawa
 
 import os
 import time
+import socket
 import serial
 from serial.tools import list_ports
 from datetime import datetime
@@ -137,6 +138,9 @@ class GasControl:
         self.sub_add_tmp = config["SUB_ADD_TMP"]
         self.host_euro = config["HOST_EURO"]
         self.port_euro = config["PORT_EURO"]
+        self.host_moxa = config["HOST_MOXA"]
+        self.port_valves = config["PORT_VALVES"]
+        self.out_terminator = "\r"
 
         self.init_valves_comport()
         print(f"Valve comport: {self.valves_comport}")
@@ -155,6 +159,39 @@ class GasControl:
 
         self.p_a = 0
         self.p_b = 0
+
+    def open_socket(self):
+        try:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.host_moxa, self.port_valves))
+            print("Socket connected.")
+            # Send a dummy status check to clear any initial data
+            # self.send_command('-xStatus')  # Ignore the first response
+        except Exception as e:
+            print(f"Failed to connect: {e}")
+            self.sock = None
+
+    def send_command(self, command):
+        try:
+            self.sock.sendall((command + self.out_terminator).encode())
+            response = self.sock.recv(4096)
+            # print(f"Raw Response: {response}")  # Print raw response for debugging
+            decoded_response = response.decode().strip()
+            # print(decoded_response)
+            # split_response = decoded_response.split("\t")
+            # print(split_response)
+            return decoded_response
+        except Exception as e:
+            print(f"Failed to send command: {e}")
+            return None
+        
+    def close_socket(self):
+        if self.sock:
+            self.sock.close()
+            print("Socket closed.")
+        if self.data_sock:
+            self.data_sock.close()
+            print("Data socket closed.")
 
     def init_valves_comport(self):
         """Initialize the comport of the valve control device
