@@ -77,23 +77,22 @@ class GasControl:
             self.sock = None
 
     def send_command(self, command):
+        self.open_socket()
         try:
             self.sock.sendall((command + self.out_terminator).encode())
             response = self.sock.recv(4096)
             print(f"Raw Response: {response}")  # Print raw response for debugging
             decoded_response = response.decode().strip()
             print(decoded_response)
-            # split_response = decoded_response.split("\t")
-            # print(split_response)
-            return decoded_response
+            split_response = decoded_response.split("\r")
+            print(split_response)
+            # return decoded_response
         except Exception as e:
             print(f"Failed to send command: {e}")
             return None
+        self.close_socket()
         
     def close_socket(self):
         if self.sock:
             self.sock.close()
             print("Socket closed.")
-        if self.data_sock:
-            self.data_sock.close()
-            print("Data socket closed.")
