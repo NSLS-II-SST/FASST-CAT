@@ -24,6 +24,7 @@ import minimalmodbus
 from pyModbusTCP.client import ModbusClient
 from pyModbusTCP.utils import encode_ieee, decode_ieee, \
                               long_list_to_word, word_list_to_long
+from serialTCP import serialTCP
 
 import json
 import platform
@@ -140,20 +141,22 @@ class GasControl:
         self.port_euro = config["PORT_EURO"]
         self.host_moxa = config["HOST_MOXA"]
         self.port_valves = config["PORT_VALVES"]
+        self.port_mfc = config['PORT_MFC']
         self.out_terminator = "\r"
 
-        self.init_valves_comport()
-        print(f"Valve comport: {self.valves_comport}")
-        self.serial_connection_valves()
+        #self.init_valves_comport()
+        #print(f"Valve comport: {self.valves_comport}")
+        #self.serial_connection_valves()
 
-        self.init_mfc_comport()
-        print(f"MFC comport: {self.mfc_comport}")
-        self.mfc_master = propar.master(self.mfc_comport, 38400)
+        #self.init_mfc_comport()
+        #print(f"MFC comport: {self.mfc_comport}")
+        #self.mfc_master = propar.master(self.mfc_comport, 38400)
+        self.mfc_master = propar.master(self.host_moxa, self.port_mfc, serial_class=serialTCP)
         self.define_flowsms()
 
-        self.init_tmp_comport()
-        print(f"TMP comport: {self.tmp_comport}")
-        self.tmp_master = minimalmodbus.Instrument(self.tmp_comport, self.sub_add_tmp)
+        #self.init_tmp_comport()
+        #print(f"TMP comport: {self.tmp_comport}")
+        #self.tmp_master = minimalmodbus.Instrument(self.tmp_comport, self.sub_add_tmp)
 
         self.modbustcp = ModbusClient(self.host_euro, self.port_euro)
 
@@ -377,7 +380,7 @@ class GasControl:
             pass
 
     def commands_list(self, valve):
-        self.ser.write(f"/{valve}?\r".encode())        
+        self.ser.write(f"/{valve}?\r".encode())
         self.decode_serial_message()
 
     def toggle_valve_position(self, valve):
@@ -1303,12 +1306,12 @@ class GasControl:
 
         lst_p_a = []
         p_a_dict = values_p_a[0]
-        p_a = f"{p_a_dict.get("data"): .2f}"
+        p_a = f"{p_a_dict.get('data'): .2f}"
         lst_p_a.append(p_a)
 
         lst_p_b = []
         p_b_dict = values_p_b[0]
-        p_b = f"{p_b_dict.get("data"): .2f}"
+        p_b = f"{p_b_dict.get('data'): .2f}"
         lst_p_b.append(p_b)
 
         # Calculating percentage values for the actual flows
@@ -1473,8 +1476,8 @@ class GasControl:
             values_dict[gas_key] = (lst, fluid)
 
         # Calculate percentage values for the actual flows
-        total_flow_a = f"{(sum(float(values_dict[gas][0][0]) for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"])): .2f}"
-        total_flow_b = f"{(sum(float(values_dict[gas][0][0]) for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"])): .2f}"
+        total_flow_a = f'{(sum(float(values_dict[gas][0][0]) for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"])): .2f}'
+        total_flow_b = f'{(sum(float(values_dict[gas][0][0]) for gas in ["H2_B", "O2_B", "CO_BH", "CH4_B", "He_B"])): .2f}'
 
         # Concentration percentages for gases on line A and B
         percentages_a = {gas: f"{(float(values_dict[gas][0][0]) / float(total_flow_a)) * 100: .1f}" for gas in ["H2_A", "O2_A", "CO_AH", "CH4_A", "He_A"]}
@@ -1955,13 +1958,13 @@ class GasControl:
             rate_sp = float(rate_sp)
             self.tmp_master.write_register(35, rate_sp, 1)
         except:
-            rate_sp = None      
+            rate_sp = None
         try:
             print(f"Setpoint: {sp} C")
             sp = float(sp)
             self.tmp_master.write_register(24, sp, 1)
         except:
-            sp = None      
+            sp = None
         while True:
             try:
                 temp_tc = self.tmp_master.read_register(1, 1)
