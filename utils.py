@@ -1,5 +1,6 @@
 import platform
 import threading
+import time
 
 
 def convert_com_port(com_port):

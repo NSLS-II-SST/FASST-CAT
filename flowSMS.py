@@ -1,13 +1,8 @@
 import propar
 from serialTCP import SerialTCP
 from utils import convert_com_port
-from pathlib import Path
 import time
 
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib
 
 # ███████╗██╗      ██████╗ ██╗    ██╗      ███████╗███╗   ███╗███████╗
 # ██╔════╝██║     ██╔═══██╗██║    ██║      ██╔════╝████╗ ████║██╔════╝
@@ -19,17 +14,13 @@ except ImportError:
 
 class FlowSMS:
 
-    def __init__(self, config, valves):
+    def __init__(self, config, gas_config, valves):
         """Initialize Flow-SMS mass flow controllers.
 
         Args:
             config (dict): Configuration dictionary containing connection settings
             valves: Valve controller instance
         """
-        # Load gas configuration
-        gas_config_path = Path(__file__).parent / "gases.toml"
-        with open(gas_config_path, "rb") as f:
-            gas_config = tomllib.load(f)
 
         # Initialize connection
         if "HOST_MOXA" in config and "PORT_MFC" in config:
@@ -43,6 +34,14 @@ class FlowSMS:
         self.valves = valves
 
         # Load gas list
+        self.load_gas_config(gas_config)
+
+    def load_gas_config(self, gas_config):
+        """Load gas configuration into lookup dictionaries.
+
+        Args:
+            gas_config (dict): Gas configuration dictionary
+        """
         self.gas_list = list(gas_config.keys())
 
         # Create lookup dictionaries from gas configurations

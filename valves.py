@@ -3,8 +3,6 @@ import socket
 import serial
 from abc import ABC, abstractmethod
 from utils import convert_com_port
-from pathlib import Path
-import tomli
 
 
 class ValvesBase(ABC):
@@ -14,18 +12,14 @@ class ValvesBase(ABC):
     implemented by subclasses.
     """
 
-    def __init__(self, out_terminator="\r"):
+    def __init__(self, gas_config, out_terminator="\r"):
         """Initialize the valve controller.
 
         Args:
             out_terminator (str): Command termination character [default: "\r"]
         """
         self.out_terminator = out_terminator
-
-        # Load gas configuration
-        gas_config_path = Path(__file__).parent / "gases.toml"
-        with open(gas_config_path, "rb") as f:
-            self.gas_config = tomli.load(f)
+        self.gas_config = gas_config
 
     @abstractmethod
     def write(self, command: str) -> None:
@@ -191,7 +185,7 @@ class ValvesBase(ABC):
 class SerialValves(ValvesBase):
     """Valve control over serial connection."""
 
-    def __init__(self, port, baudrate=9600, **kwargs):
+    def __init__(self, gas_config, port, baudrate=9600, **kwargs):
         """Initialize serial connection to valve controller.
 
         Args:
@@ -199,7 +193,7 @@ class SerialValves(ValvesBase):
             baudrate (int): Baud rate [default: 9600]
             **kwargs: Additional arguments passed to ValvesBase
         """
-        super().__init__(**kwargs)
+        super().__init__(gas_config, **kwargs)
         self.ser = serial.Serial()
         self.ser.baudrate = baudrate
         self.ser.port = port
@@ -225,7 +219,7 @@ class SerialValves(ValvesBase):
 class EthernetValves(ValvesBase):
     """Valve control over Ethernet connection."""
 
-    def __init__(self, host, port, **kwargs):
+    def __init__(self, gas_config, host, port, **kwargs):
         """Initialize Ethernet connection to valve controller.
 
         Args:
@@ -233,7 +227,7 @@ class EthernetValves(ValvesBase):
             port (int): Port number
             **kwargs: Additional arguments passed to ValvesBase
         """
-        super().__init__(**kwargs)
+        super().__init__(gas_config, **kwargs)
         self.host = host
         self.port = port
 
@@ -256,7 +250,7 @@ class EthernetValves(ValvesBase):
         return response.decode().strip() if response else ""
 
 
-def create_valves(config):
+def create_valves(io_config, gas_config):
     """Factory function to create appropriate valve controller instance.
 
     Args:
@@ -265,8 +259,10 @@ def create_valves(config):
     Returns:
         ValvesBase: Configured valve controller instance
     """
-    if "HOST_MOXA" not in config or "PORT_VALVES" not in config:
-        port = convert_com_port(config["COM_VALVE"])
-        return SerialValves(port=port)
+    if "HOST_MOXA" not in io_config or "PORT_VALVES" not in io_config:
+        port = convert_com_port(io_config["COM_VALVE"])
+        return SerialValves(gas_config, port=port)
     else:
-        return EthernetValves(host=config["HOST_MOXA"], port=config["PORT_VALVES"])
+        return EthernetValves(
+            gas_config, host=io_config["HOST_MOXA"], port=io_config["PORT_VALVES"]
+        )

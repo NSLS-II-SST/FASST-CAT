@@ -20,6 +20,12 @@ from eurothermSerial import EuroSerial
 from eurothermTCP import EuroTCP
 from flowSMS import FlowSMS
 from utils import convert_com_port
+from pathlib import Path
+
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 
 
 logging.basicConfig(
@@ -53,10 +59,15 @@ class GasControl:
         """
         with open(config_file, "r") as file:
             config = json.load(file)
+
+        gas_config_path = Path(__file__).parent / "gases.toml"
+        with open(gas_config_path, "rb") as f:
+            self.gas_config = tomllib.load(f)
+
         self.config = config
 
-        self.valves = create_valves(config)
-        self.flowSMS = FlowSMS(config, self.valves)
+        self.valves = create_valves(config, self.gas_config)
+        self.flowSMS = FlowSMS(config, self.gas_config, self.valves)
         self.eurotherm = create_eurotherm(config, self.flowSMS)
 
     # ██╗   ██╗ █████╗ ██╗    ██╗   ██╗███████╗███████╗
