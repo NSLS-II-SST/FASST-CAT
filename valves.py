@@ -2,6 +2,9 @@ import time
 import socket
 import serial
 from abc import ABC, abstractmethod
+from utils import convert_com_port
+from pathlib import Path
+import tomli
 
 
 class ValvesBase(ABC):
@@ -18,6 +21,11 @@ class ValvesBase(ABC):
             out_terminator (str): Command termination character [default: "\r"]
         """
         self.out_terminator = out_terminator
+
+        # Load gas configuration
+        gas_config_path = Path(__file__).parent / "gases.toml"
+        with open(gas_config_path, "rb") as f:
+            self.gas_config = tomli.load(f)
 
     @abstractmethod
     def write(self, command: str) -> None:
@@ -160,6 +168,25 @@ class ValvesBase(ABC):
         self.write(f"/{valve}NP")
         return self.read()
 
+    def feed_gas(self, gas_name: str) -> None:
+        """Set valve positions to feed specified gas.
+
+        Args:
+            gas_name (str): Name of gas to feed (must match config file)
+        """
+        if gas_name not in self.gas_config:
+            raise ValueError(f"Unknown gas: {gas_name}")
+
+        gas_settings = self.gas_config[gas_name]
+        if "valve_settings" not in gas_settings:
+            raise ValueError(f"No valve settings defined for gas: {gas_name}")
+
+        # Apply all valve settings for this gas
+        valve, position = gas_settings["valve_settings"]
+        self.move_valve_to_position(valve, position)
+
+        print(f"Feeding {gas_name}")
+
 
 class SerialValves(ValvesBase):
     """Valve control over serial connection."""
@@ -209,38 +236,24 @@ class EthernetValves(ValvesBase):
         super().__init__(**kwargs)
         self.host = host
         self.port = port
-        self.sock = None
-        self.connect()
-
-    def connect(self):
-        """Establish Ethernet connection."""
-        try:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.connect((self.host, self.port))
-        except Exception as e:
-            print(f"Failed to connect via Ethernet: {e}")
-            self.sock = None
 
     def write(self, command):
         """Write command over Ethernet connection."""
-        if self.sock:
-            try:
-                self.sock.sendall(f"{command}{self.out_terminator}".encode())
-            except Exception as e:
-                print(f"Failed to send command: {e}")
-                self.connect()  # Try to reconnect
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((self.host, self.port))
+            sock.sendall(f"{command}{self.out_terminator}".encode())
+            self._last_read = sock.recv(4096)
+            sock.close()
+        except Exception as e:
+            print(f"Failed to send command: {e}")
+            self._last_read = ""
 
     def read(self):
         """Read response from Ethernet connection."""
-        if self.sock:
-            try:
-                response = self.sock.recv(4096)
-                return response.decode().strip()
-            except Exception as e:
-                print(f"Failed to read response: {e}")
-                self.connect()  # Try to reconnect
-                return ""
-        return ""
+        response = self._last_read
+        self._last_read = ""
+        return response.decode().strip() if response else ""
 
 
 def create_valves(config):
@@ -252,12 +265,8 @@ def create_valves(config):
     Returns:
         ValvesBase: Configured valve controller instance
     """
-    if config.get("VALVES_COMMUNICATION", "ethernet").lower() == "serial":
-        port = (
-            f"/dev/ttyS{int(config['COM_VALVE'][-1]) - 1}"
-            if platform.system() != "Windows"
-            else config["COM_VALVE"]
-        )
+    if "HOST_MOXA" not in config or "PORT_VALVES" not in config:
+        port = convert_com_port(config["COM_VALVE"])
         return SerialValves(port=port)
     else:
         return EthernetValves(host=config["HOST_MOXA"], port=config["PORT_VALVES"])

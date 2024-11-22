@@ -1,7 +1,7 @@
 import socket
-import threading
 
-class serialTCP():
+
+class SerialTCP:
     def __init__(self, address, port, **kwargs):
         # Initialize the port, port and baudrate can be controlled
         # in instrument and master initialization.
@@ -14,17 +14,17 @@ class serialTCP():
 
     def close(self):
         # Close the port
-        print('close')
+        print("close")
 
     def open(self):
         # Open the port
-        print('open')
+        print("open")
 
     def open_socket(self):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.address, self.port))
-            #print("Socket connected.")
+            # print("Socket connected.")
             return sock
             # Send a dummy status check to clear any initial data
             # self.send_command('-xStatus')  # Ignore the first response
@@ -35,14 +35,14 @@ class serialTCP():
     def close_socket(self, sock):
         if sock:
             sock.close()
-            #print("Socket closed.")
+            # print("Socket closed.")
 
     def _read(self, sock):
-        print("Reading from socket")
+        # print("Reading from socket")
         sock.settimeout(1)
         try:
             response = sock.recv(1024)
-            #print(f"Got response: {response}")
+            # print(f"Got response: {response}")
             self._last_read += response
             sock.close()
         except BlockingIOError:
@@ -50,18 +50,18 @@ class serialTCP():
 
     def read(self, size=1):
         # Read data from port, return bytes object
-        #print("Reading")
+        # print("Reading")
         response = self._last_read
         self._last_read = b""
-        #print(response)
+        # print(response)
         return response
 
     def write(self, data):
-        #print(f"Writing {data}")
+        # print(f"Writing {data}")
         sock = self.open_socket()
         sock.sendall(data)
-        #t = threading.Thread(target=self._read, args=[sock])
-        #t.start()
+        # t = threading.Thread(target=self._read, args=[sock])
+        # t.start()
         self._read(sock)
         # Write data to port, bytes object as input
 

@@ -4,22 +4,24 @@
 import time
 from datetime import datetime
 from pyModbusTCP.client import ModbusClient
+from utils import pressure_alarm
 
-HOST = "10.68.42.3"
-PORT = 502
+
+# ███████╗██╗   ██╗██████╗  ██████╗ ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗
+# ██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██╗████╗ ████║
+# █████╗  ██║   ██║██████╔╝██║   ██║   ██║   ███████║█████╗  ██████╔╝██╔████╔██║
+# ██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║
+# ███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║
+# ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
 
 
 class EuroTCP:
-
-    def __init__(
-        self,
-        host: str = HOST,
-        port: int = PORT,
-    ) -> None:
+    def __init__(self, host: str, port: int, flowSMS=None):
 
         self.host = host
         self.port = port
         self.modbustcp = ModbusClient(host, port)
+        self.flowSMS = flowSMS
 
     def get_temp_wsp(self, verbose=False):
         """Return the process value (PV) for loop1."""
@@ -131,7 +133,7 @@ class EuroTCP:
         )
         return False
 
-    # @pressure_alarm()
+    @pressure_alarm()
     def heating_event(self, rate_sp=None, sp=None, max_duration=600):
         """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
@@ -177,14 +179,14 @@ class EuroTCP:
                 print(f"{current_sp} C setpoint reached!")
                 break
 
-            self.p_a, self.p_b = self.pressure_report()
+            p_a, p_b = self.flowSMS.pressure_report()
 
             print(
                 "-----------------------------------------------------------------------------------------------------\n",
                 f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
                 f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
                 "-----------------------------------------------------------------------------------------------------\n",
-                f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
+                f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
                 "-----------------------------------------------------------------------------------------------------",
             )
             print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
@@ -202,7 +204,7 @@ class EuroTCP:
 
         self.modbustcp.close()
 
-    # @pressure_alarm()
+    @pressure_alarm()
     def cooling_event(self, rate_sp=None, sp=None, max_duration=600):
         """Loops over actual temperature in a heating event until setpoint is reached, or max duration exceeded."""
         self.modbustcp.open()
@@ -248,14 +250,14 @@ class EuroTCP:
                 print(f"{current_sp} C setpoint reached!")
                 break
 
-            self.p_a, self.p_b = self.pressure_report()
+            p_a, p_b = self.flowSMS.pressure_report()
 
             print(
                 "-----------------------------------------------------------------------------------------------------\n",
                 f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
                 f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
                 "-----------------------------------------------------------------------------------------------------\n",
-                f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
+                f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
                 "-----------------------------------------------------------------------------------------------------",
             )
             print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
@@ -319,7 +321,7 @@ class EuroTCP:
         print(f"Cooling rate: {rate*0.1} C/min")
         print(f"Setpoint: {sp*0.1} C")
 
-    # @pressure_alarm()
+    @pressure_alarm()
     def time_event(self, time_in_seconds: int, argument: str):
         """Waits for a specified time while printing the elapsed time on the terminal.
 
@@ -334,12 +336,12 @@ class EuroTCP:
                     temp_tc = self.modbustcp.read_holding_registers(1)[0] * 0.1
                 except:
                     temp_tc = None
-                self.p_a, self.p_b = self.pressure_report()
+                p_a, p_b = self.flowSMS.pressure_report()
                 print(
                     "-----------------------------------------------------------------------------------------------------\n",
                     f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc: .1f} degC\n",
                     "-----------------------------------------------------------------------------------------------------\n",
-                    f"Pressure Line A: {self.p_a: .2f} psia | Pressure Line B: {self.p_b: .2f} psia\n",
+                    f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
                     "-----------------------------------------------------------------------------------------------------",
                 )
                 print(

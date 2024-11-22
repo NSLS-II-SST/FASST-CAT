@@ -2,11 +2,18 @@ import minimalmodbus
 import time
 from datetime import datetime
 
+# ███████╗██╗   ██╗██████╗  ██████╗ ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗
+# ██╔════╝██║   ██║██╔══██╗██╔═══██╗╚══██╔══╝██║  ██║██╔════╝██╔══██╗████╗ ████║
+# █████╗  ██║   ██║██████╔╝██║   ██║   ██║   ███████║█████╗  ██████╔╝██╔████╔██║
+# ██╔══╝  ██║   ██║██╔══██╗██║   ██║   ██║   ██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║
+# ███████╗╚██████╔╝██║  ██║╚██████╔╝   ██║   ██║  ██║███████╗██║  ██║██║ ╚═╝ ██║
+# ╚══════╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝
+
 
 class EuroSerial:
     """Class for controlling Eurotherm temperature controllers via serial communication."""
 
-    def __init__(self, com_port, sub):
+    def __init__(self, com_port, sub, flowSMS=None):
         """Initialize the temperature controller connection.
 
         Args:
@@ -17,6 +24,7 @@ class EuroSerial:
         except Exception as e:
             print(f"Failed to initialize temperature controller: {e}")
             self.tmp_master = None
+        self.flowSMS = flowSMS
 
     def heating_event(self, rate_sp=None, sp=None):
         """Loops over actual temperature in an heating event until setpoint is reached"""
@@ -49,7 +57,8 @@ class EuroSerial:
                 if result == True:
                     temp_tc = float(temp_tc)
                     sp = float(sp)
-                    self.pressure_report()
+                    if self.flowSMS is not None:
+                        self.flowSMS.pressure_report()
                     print(
                         "-----------------------------------------------------------------------------------------------------\n",
                         f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---\n",
@@ -92,10 +101,11 @@ class EuroSerial:
                 # print("Instrument response is invalid")
             try:
                 result = float(temp_tc) > float(sp)
-                if result == True:
+                if result:
                     temp_tc = float(temp_tc)
                     sp = float(sp)
-                    self.pressure_report()
+                    if self.flowSMS is not None:
+                        self.flowSMS.pressure_report()
                     print(
                         "-----------------------------------------------------------------------------------------------------\n",
                         f"Setpoint Temp: {sp} C | Programmer Temp: {temp_programmer} C | Reactor Temp: {temp_tc} C | Power out: {power_out}% ---\n",
@@ -121,7 +131,7 @@ class EuroSerial:
                 # print("Instrument response is invalid")
             try:
                 result = float(temp_pv) > float(sp)
-                if result == True:
+                if result:
                     self.cooling_event(rate_sp, sp)
                     print("Start of cooling event")
                     break
@@ -163,7 +173,8 @@ class EuroSerial:
             elapsed_time = time.time() - start_time
             if elapsed_time < time_in_seconds:
                 temp_tc = self.tmp_master.read_register(1, 1)
-                self.pressure_report()
+                if self.flowSMS is not None:
+                    self.flowSMS.pressure_report()
                 print(
                     "-----------------------------------------------------------------------------------------------------\n",
                     f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc} degC\n",
