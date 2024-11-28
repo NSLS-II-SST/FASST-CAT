@@ -181,16 +181,19 @@ class EuroTCP:
 
             p_a, p_b = self.flowSMS.pressure_report()
 
-            print(
-                "-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
-                f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
-                "-----------------------------------------------------------------------------------------------------\n",
-                f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
-                "-----------------------------------------------------------------------------------------------------",
-            )
-            print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
-            print("\033[K", end="")  # Clear the current line
+            try:
+                print(
+                    "-----------------------------------------------------------------------------------------------------\n",
+                    f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
+                    f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
+                    "-----------------------------------------------------------------------------------------------------\n",
+                    f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
+                    "-----------------------------------------------------------------------------------------------------",
+                )
+                print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print("\033[K", end="")  # Clear the current line
+            except (AttributeError, TypeError):
+                continue
 
             # Calculate elapsed time and check against max duration
             elapsed_time = time.time() - start_time
@@ -251,17 +254,19 @@ class EuroTCP:
                 break
 
             p_a, p_b = self.flowSMS.pressure_report()
-
-            print(
-                "-----------------------------------------------------------------------------------------------------\n",
-                f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
-                f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
-                "-----------------------------------------------------------------------------------------------------\n",
-                f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
-                "-----------------------------------------------------------------------------------------------------",
-            )
-            print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
-            print("\033[K", end="")  # Clear the current line
+            try:
+                print(
+                    "-----------------------------------------------------------------------------------------------------\n",
+                    f"Setpoint Temp: {current_sp: .1f} C | Programmer Temp: {temp_programmer: .1f} C | "
+                    f"Reactor Temp: {temp_tc: .1f} C | Power out: {power_out: .1f}% | \n"
+                    "-----------------------------------------------------------------------------------------------------\n",
+                    f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
+                    "-----------------------------------------------------------------------------------------------------",
+                )
+                print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print("\033[K", end="")  # Clear the current line
+            except (AttributeError, TypeError):
+                continue
 
             # Calculate elapsed time and check against max duration
             elapsed_time = time.time() - start_time
@@ -337,27 +342,33 @@ class EuroTCP:
                 except:
                     temp_tc = None
                 p_a, p_b = self.flowSMS.pressure_report()
-                print(
-                    "-----------------------------------------------------------------------------------------------------\n",
-                    f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc: .1f} degC\n",
-                    "-----------------------------------------------------------------------------------------------------\n",
-                    f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
-                    "-----------------------------------------------------------------------------------------------------",
-                )
-                print(
-                    "\033[F\033[F\033[F\033[F\033[F", end=""
-                )  # Move cursor up 5 lines
-                print("\033[K", end="")  # Clear the current line
-                time.sleep(1)
+                try:
+                    print(
+                        "-----------------------------------------------------------------------------------------------------\n",
+                        f"Elapsed time for {str(argument)}: {int(elapsed_time)} seconds at {temp_tc: .1f} degC\n",
+                        "-----------------------------------------------------------------------------------------------------\n",
+                        f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
+                        "-----------------------------------------------------------------------------------------------------",
+                    )
+                    print(
+                        "\033[F\033[F\033[F\033[F\033[F", end=""
+                    )  # Move cursor up 5 lines
+                    print("\033[K", end="")  # Clear the current line
+                    time.sleep(1)
+                except (AttributeError, TypeError):
+                    continue
             else:
-                print(
-                    "-----------------------------------------------------------------------------------------------------\n",
-                    f"Wait time of {time_in_seconds} seconds at {temp_tc: .1f} degC completed.",
-                    "-------------------------------------------------------------------\n",
-                    "-----------------------------------------------------------------------------------------------------",
-                    end="\r",
-                )
-                break
+                try:
+                    print(
+                        "-----------------------------------------------------------------------------------------------------\n",
+                        f"Wait time of {time_in_seconds} seconds at {temp_tc: .1f} degC completed.",
+                        "-------------------------------------------------------------------\n",
+                        "-----------------------------------------------------------------------------------------------------",
+                        end="\r",
+                    )
+                    break
+                except (AttributeError, TypeError):
+                    continue
 
     def drift_mantis_pid(self):
         self.modbustcp.open()
