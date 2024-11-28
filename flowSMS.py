@@ -623,6 +623,7 @@ class FlowSMS:
         for gas_key, fluid_types in gas_params.items():
             params = self.generate_params(self.gas_ID[gas_key])
             values = self.mfc_master.read_parameters(params)
+            time.sleep(0.01)
 
             lst = []
             for value in values:
@@ -695,6 +696,7 @@ class FlowSMS:
                 }
             ]
         )
+        time.sleep(0.01)
         self.p_a = float(f"{values_p_a[0]['data']: .2f}")
         values_p_b = self.mfc_master.read_parameters(
             [
@@ -706,6 +708,7 @@ class FlowSMS:
                 }
             ]
         )
+        time.sleep(0.01)
         self.p_b = float(f"{values_p_b[0]['data']: .2f}")
         if verbose is True:
             print(
