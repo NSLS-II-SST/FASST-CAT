@@ -696,7 +696,7 @@ class FlowSMS:
                 }
             ]
         )
-        time.sleep(0.01)
+        time.sleep(0.1)
         self.p_a = float(f"{values_p_a[0]['data']: .2f}")
         values_p_b = self.mfc_master.read_parameters(
             [
@@ -708,7 +708,7 @@ class FlowSMS:
                 }
             ]
         )
-        time.sleep(0.01)
+        time.sleep(0.1)
         self.p_b = float(f"{values_p_b[0]['data']: .2f}")
         if verbose is True:
             print(
