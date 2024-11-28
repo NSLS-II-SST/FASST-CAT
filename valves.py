@@ -49,6 +49,7 @@ class ValvesBase(ABC):
             tuple: (valve_number, position_str)
         """
         self.write(f"/{valve}CP")
+        time.sleep(0.01)
         current_position = self.read()
         valve_no = current_position[1]
         position = current_position[-2]
