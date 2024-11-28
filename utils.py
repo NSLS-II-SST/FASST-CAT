@@ -42,26 +42,32 @@ def pressure_alarm(low_threshold=10, high_threshold=30):
                     # Check if either pressure exceeds the threshold
                     if p_a > high_threshold or p_b > high_threshold:
                         self.flowSMS.setpoints()  # Trigger adjustment if above threshold
-                        print(
-                            "!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                            "!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                            f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
-                            "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE",
-                        )
-                        finished.set()  # Stop monitoring if alarm is triggered
-                        self.setpoint_finish_experiment()
-                        return
+                        try:
+                            print(
+                                "!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                                "!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!HIGH PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                                f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
+                                "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE",
+                            )
+                            finished.set()  # Stop monitoring if alarm is triggered
+                            self.setpoint_finish_experiment()
+                            return
+                        except (ValueError, TypeError):
+                            continue
                     elif p_a < low_threshold or p_b < low_threshold:
                         self.flowSMS.setpoints()  # Trigger adjustment if above threshold
-                        print(
-                            "!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                            "!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
-                            f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
-                            "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE",
-                        )
-                        finished.set()  # Stop monitoring if alarm is triggered
-                        self.setpoint_finish_experiment()
-                        return
+                        try:
+                            print(
+                                "!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                                "!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n!!!!!!!!!!!!!!LOW PRESSURE ALARM!!!!!!!!!!!!!!\n",
+                                f"PRESSURE IN LINE A = {p_a} psia, PRESSURE IN LINE B = {p_b} psia.\n",
+                                "CLOSING ALL SHUTOFF VALVES AND TAKING SYSTEM TO ROOM TEMPERATURE",
+                            )
+                            finished.set()  # Stop monitoring if alarm is triggered
+                            self.setpoint_finish_experiment()
+                            return
+                        except (ValueError, TypeError):
+                            continue
                     time.sleep(1)  # Check every second
 
             # Start monitoring in a separate thread
