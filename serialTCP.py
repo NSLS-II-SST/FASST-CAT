@@ -1,71 +1,87 @@
 import socket
+import time
 
 
 class SerialTCP:
-    def __init__(self, address, port, **kwargs):
-        # Initialize the port, port and baudrate can be controlled
-        # in instrument and master initialization.
-        print(address, port)
+    def __init__(self, address, port, read_timeout=1, max_retries=3, retry_delay=1, verbose=False):
         self.address = address
         self.port = port
         self.out_terminator = "\r"
-        self._read_timeout = 1
+        self._read_timeout = read_timeout
         self._last_read = b""
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self._sock = None  # Keep a persistent socket
+        self.verbose = verbose
 
-    def close(self):
-        # Close the port
-        print("close")
-
-    def open(self):
-        # Open the port
-        print("open")
+    def _log(self, message):
+        """Log a message if verbose is enabled."""
+        if self.verbose:
+            print(message)
 
     def open_socket(self):
+        """Open a persistent socket connection."""
         try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((self.address, self.port))
-            # print("Socket connected.")
-            return sock
-            # Send a dummy status check to clear any initial data
-            # self.send_command('-xStatus')  # Ignore the first response
+            self._sock = socket.create_connection((self.address, self.port), timeout=self._read_timeout)
+            self._log("Socket connected.")
         except Exception as e:
-            print(f"Failed to connect: {e}")
-            return None
+            self._log(f"Failed to connect: {e}")
+            self._sock = None
 
-    def close_socket(self, sock):
-        if sock:
-            sock.close()
-            # print("Socket closed.")
+    def close_socket(self):
+        """Close the socket if it is open."""
+        if self._sock:
+            try:
+                self._sock.close()
+                self._log("Socket closed.")
+            except Exception as e:
+                self._log(f"Error closing socket: {e}")
+            finally:
+                self._sock = None
 
-    def _read(self, sock):
-        # print("Reading from socket")
-        sock.settimeout(1)
+    def _read(self):
+        """Read data from the socket."""
+        if not self._sock:
+            raise ConnectionError("Socket is not connected.")
+
         try:
-            response = sock.recv(1024)
-            # print(f"Got response: {response}")
+            self._sock.settimeout(self._read_timeout)
+            response = self._sock.recv(1024)
             self._last_read += response
-            sock.close()
-        except BlockingIOError:
-            sock.close()
+            self._log(f"Received data: {response}")
+        except socket.timeout:
+            self._log("Read timeout occurred.")
+        except Exception as e:
+            self._log(f"Error during read: {e}")
 
     def read(self, size=1):
-        # Read data from port, return bytes object
-        # print("Reading")
-        response = self._last_read
-        self._last_read = b""
-        # print(response)
+        """Return the last read data."""
+        response = self._last_read[:size]
+        self._last_read = self._last_read[size:]
         return response
 
     def write(self, data):
-        # print(f"Writing {data}")
-        sock = self.open_socket()
-        sock.sendall(data)
-        # t = threading.Thread(target=self._read, args=[sock])
-        # t.start()
-        self._read(sock)
-        # Write data to port, bytes object as input
+        """Write data to the socket."""
+        if not self._sock:
+            raise ConnectionError("Socket is not connected.")
+
+        for attempt in range(self.max_retries):
+            try:
+                self._log(f"Attempting to write data: {data}")
+                self._sock.sendall(data)
+                self._read()  # Immediately read response
+                self._log("Write successful.")
+                break  # Exit loop if successful
+            except (socket.error, BrokenPipeError) as e:
+                self._log(f"Write attempt {attempt + 1} failed: {e}")
+                time.sleep(self.retry_delay)
+                if attempt < self.max_retries - 1:
+                    self._log("Retrying...")
+                    self.open_socket()  # Reconnect and retry
+                else:
+                    raise ConnectionError("Failed to write after multiple retries.")
 
     @property
     def in_waiting(self):
-        # Return number of bytes available for reading
+        """Return the number of bytes available for reading."""
         return len(self._last_read)
