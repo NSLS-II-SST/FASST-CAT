@@ -3,18 +3,6 @@ import time
 
 class SerialTCP:
     def __init__(self, address, port, timeout=None, write_timeout=None, read_timeout=1, max_retries=3, retry_delay=1, verbose=False):
-        """
-        Initializes the SerialTCP class with the necessary parameters.
-        
-        :param address: Hostname or IP address of the TCP server.
-        :param port: Port number of the TCP server.
-        :param timeout: General timeout for socket connection (default is None).
-        :param write_timeout: Timeout for writing to the socket (default is None).
-        :param read_timeout: Timeout for reading from the socket (default is 1 second).
-        :param max_retries: Maximum number of retry attempts for write operations (default is 3).
-        :param retry_delay: Delay between retry attempts (default is 1 second).
-        :param verbose: If True, logs will be printed for each action (default is False).
-        """
         self.address = address
         self.port = port
         self.timeout = timeout
@@ -52,11 +40,15 @@ class SerialTCP:
             finally:
                 self._sock = None
 
+    def _ensure_socket_open(self):
+        """Ensure the socket is open before performing operations."""
+        if not self._sock or self._sock.fileno() == -1:
+            self._log("Socket is not connected, attempting to reconnect...")
+            self.open_socket()
+
     def _read(self):
         """Read data from the socket."""
-        if not self._sock:
-            raise ConnectionError("Socket is not connected.")
-
+        self._ensure_socket_open()  # Ensure socket is open before reading
         try:
             self._sock.settimeout(self._read_timeout)
             response = self._sock.recv(1024)  # Reading up to 1024 bytes
@@ -78,9 +70,7 @@ class SerialTCP:
 
     def write(self, data):
         """Write data to the socket with retry functionality."""
-        if not self._sock:
-            raise ConnectionError("Socket is not connected.")
-
+        self._ensure_socket_open()  # Ensure socket is open before writing
         for attempt in range(self.max_retries):
             try:
                 self._log(f"Attempting to write data: {data}")
