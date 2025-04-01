@@ -22,10 +22,10 @@ import minimalmodbus
 
 # The HID for the valve 3. This is should ideally be a specified in a different file.
 # HID_VALVE = "USB VID:PID=067B:2303 SER= LOCATION=1-11" #RS232
-HID_VALVE = "COM10" #RS485
-HID_MFC = "COM9"
+HID_VALVE = "COM6" #RS485
+HID_MFC = "COM8"
 BAUD_MFC = 38400
-HID_TMP = "COM8"
+HID_TMP = "COM7"
 SUB_ADD_TMP = 2
 
 # This is a dictionary that maps the valve position and ID to an integer.
