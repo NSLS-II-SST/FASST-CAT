@@ -92,6 +92,7 @@ def status():
             print("FASST-CAT System Status:")
             print("=" * 30)
             gc = ip.user_ns["gc"]
+            print(gc.get_valve_mode())
             gc.valves.display_valve_positions()
             print()
             gc.flowSMS.status()

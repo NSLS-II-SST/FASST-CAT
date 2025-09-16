@@ -627,6 +627,8 @@ class FlowSMS:
 
         # Read and store parameters for each gas
         for gas_key, fluid_types in gas_params.items():
+            if gas_key not in self.gas_ID:
+                continue
             params = self.generate_params(self.gas_ID[gas_key])
             values = self.mfc_master.read_parameters(params)
             time.sleep(0.01)

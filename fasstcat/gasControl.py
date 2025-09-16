@@ -258,6 +258,18 @@ class GasControl:
                 "Pulses line valve position: on (Gas Line B -> loop 2 -> vent / Gas Line A -> loop 1 -> reactor)"
             )
 
+    def get_valve_mode(self):
+        _, APos = self.valves.get_valve_position("A")
+        _, BPos = self.valves.get_valve_position("B")
+        _, CPos = self.valves.get_valve_position("C")
+        positions = (APos, BPos, CPos)
+        modes = {("OFF", "OFF", "OFF"): "Line A Continuous Mode",
+                 ("OFF", "ON", "OFF"): "Line B Continuous Mode",
+                 ("ON", "OFF", "ON"): "Pulses Loop Mode A", 
+                 ("ON", "ON", "ON"): "Pulses Loop Mode B",}
+        mode = modes.get(positions, f"Unknown valve mode {positions}!")
+        return mode
+
     def cont_mode_A(self, verbose: bool = True):
         """Function that selects the position of the valves in the reaction mode selection
         module to the continuous mode gas line A mode

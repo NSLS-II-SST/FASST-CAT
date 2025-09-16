@@ -231,26 +231,55 @@ class EthernetValves(ValvesBase):
         super().__init__(gas_config, **kwargs)
         self.host = host
         self.port = port
+        self.sock = None
 
-    def write(self, command):
-        """Write command over Ethernet connection."""
+    def get_read_socket(self):
+        if not self.sock:
+            return self.sock
         try:
+            self.sock.getpeername()
+            self.sock.settimeout(1.0)
+        except Exception as e:
+            print(f"Socket not open or connected: {e}")
+            self.sock = None
+            return self.sock
+        if self.sock._closed:
+            self.sock = None
+            return self.sock
+        return self.sock
+
+    def get_write_socket(self):
+        sock = self.get_read_socket()
+        if not sock:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.host, self.port))
-            sock.sendall(f"{command}{self.out_terminator}".encode())
-            sock.setblocking(False)
-            self._last_read = sock.recv(4096)
+            self.sock = sock
+        self.sock.settimeout(10)
+        return self.sock
+
+    def write(self, command):
+        """Write command over Ethernet connection. Returns number of bits written"""
+        sock = self.get_write_socket()
+        try:
+            return sock.sendall(f"{command}{self.out_terminator}".encode())
         except Exception as e:
             print(f"Failed to send command: {e}")
-            self._last_read = ""
-        finally:
-            sock.close()
+            self.sock = None
+            if sock:
+                sock.close()
+            return 0
 
     def read(self):
         """Read response from Ethernet connection."""
-        response = self._last_read
-        self._last_read = ""
-        return response.decode().strip() if response else ""
+        sock = self.get_read_socket()
+        if sock:
+            try:
+                response = sock.recv(4096).decode().strip()
+            except TimeoutError:
+                response = ""
+        else:
+            response = ""
+        return response
 
 
 def create_valves(io_config, gas_config):
