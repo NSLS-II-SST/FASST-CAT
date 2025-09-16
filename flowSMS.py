@@ -1,5 +1,5 @@
 import propar
-from serialTCP import SerialTCP
+from .serialTCP import SerialTCP
 from utils import convert_com_port
 import time
 
