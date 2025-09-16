@@ -2,7 +2,7 @@ import time
 import socket
 import serial
 from abc import ABC, abstractmethod
-from utils import convert_com_port
+from .utils import convert_com_port
 
 
 class ValvesBase(ABC):
@@ -245,7 +245,6 @@ class EthernetValves(ValvesBase):
             self._last_read = ""
         finally:
             sock.close()
-
 
     def read(self):
         """Read response from Ethernet connection."""

@@ -68,18 +68,58 @@ Examples:
 
     args = parser.parse_args()
 
-    # Validate file paths
-    config_path = Path(args.config)
-    gases_path = Path(args.gases)
+    # Get the project root directory (parent of fasstcat package)
+    project_root = Path(__file__).parent.parent
+    config_dir = project_root / "config"
+    examples_dir = project_root / "examples"
 
-    if not config_path.exists():
-        print(f"Error: Configuration file '{config_path}' not found.")
-        print("Please provide a valid path to your config.json file.")
+    def find_config_file(filename, search_paths):
+        """Find a configuration file in the given search paths."""
+        for path in search_paths:
+            file_path = path / filename
+            if file_path.exists():
+                return file_path
+        return None
+
+    # Check if custom paths are provided and exist
+    config_path_abs = Path(args.config)
+    gases_path_abs = Path(args.gases)
+
+    if config_path_abs.exists() and gases_path_abs.exists():
+        # Both files exist as specified
+        config_path = config_path_abs
+        gases_path = gases_path_abs
+    else:
+        # Determine search paths for config files
+        if args.config == "config.json" and args.gases == "gases.toml":
+            # Use default search order: config/ -> examples/
+            config_search_paths = [config_dir, examples_dir]
+            gases_search_paths = [config_dir, examples_dir]
+        else:
+            # Try to find them in the project directories
+            config_search_paths = [project_root, config_dir, examples_dir]
+            gases_search_paths = [project_root, config_dir, examples_dir]
+
+        # Find configuration files
+        config_path = find_config_file(args.config, config_search_paths)
+        gases_path = find_config_file(args.gases, gases_search_paths)
+
+    if config_path is None:
+        print(f"Error: Configuration file '{args.config}' not found.")
+        print("Searched in:")
+        for path in config_search_paths:
+            print(f"  - {path}")
+        print(f"\nPlease copy example files from {examples_dir} to {config_dir}")
+        print("or provide a valid path to your config.json file.")
         sys.exit(1)
 
-    if not gases_path.exists():
-        print(f"Error: Gases file '{gases_path}' not found.")
-        print("Please provide a valid path to your gases.toml file.")
+    if gases_path is None:
+        print(f"Error: Gases file '{args.gases}' not found.")
+        print("Searched in:")
+        for path in gases_search_paths:
+            print(f"  - {path}")
+        print(f"\nPlease copy example files from {examples_dir} to {config_dir}")
+        print("or provide a valid path to your gases.toml file.")
         sys.exit(1)
 
     print("FASST-CAT Catalysis Control System")
@@ -91,7 +131,7 @@ Examples:
     try:
         # Initialize GasControl with provided config files
         print("Initializing gas control system...")
-        gc = GasControl(str(config_path))
+        gc = GasControl(str(config_path), str(gases_path))
         print("✓ Gas control system initialized successfully!")
         print()
 

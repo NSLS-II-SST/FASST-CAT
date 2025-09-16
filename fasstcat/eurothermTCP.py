@@ -4,7 +4,7 @@
 import time
 from datetime import datetime
 from pyModbusTCP.client import ModbusClient
-from utils import pressure_alarm
+from .utils import pressure_alarm
 
 
 # ███████╗██╗   ██╗██████╗  ██████╗ ████████╗██╗  ██╗███████╗██████╗ ███╗   ███╗
@@ -190,7 +190,9 @@ class EuroTCP:
                     f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
                     "-----------------------------------------------------------------------------------------------------",
                 )
-                print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print(
+                    "\033[F\033[F\033[F\033[F\033[F", end=""
+                )  # Move cursor up 5 lines
                 print("\033[K", end="")  # Clear the current line
             except (AttributeError, TypeError):
                 continue
@@ -263,7 +265,9 @@ class EuroTCP:
                     f"Pressure Line A: {p_a: .2f} psia | Pressure Line B: {p_b: .2f} psia\n",
                     "-----------------------------------------------------------------------------------------------------",
                 )
-                print("\033[F\033[F\033[F\033[F\033[F", end="")  # Move cursor up 5 lines
+                print(
+                    "\033[F\033[F\033[F\033[F\033[F", end=""
+                )  # Move cursor up 5 lines
                 print("\033[K", end="")  # Clear the current line
             except (AttributeError, TypeError):
                 continue

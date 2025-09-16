@@ -170,16 +170,24 @@ def translate_gas_config(config):
 
 
 class GasControl:
-    def __init__(self, config_file="config.json") -> None:
+    def __init__(self, config_file="config.json", gases_file=None) -> None:
         """Initialize the gas control system.
 
         Args:
             config_file (str): Path to configuration file [default: "config.json"]
+            gases_file (str, optional): Path to gases TOML file. If None, will look
+                                      for gases.toml in the same directory as config_file
         """
         with open(config_file, "r") as file:
             config = json.load(file)
 
-        gas_config_path = Path(__file__).parent / "gases.toml"
+        if gases_file is None:
+            # Look for gases.toml in the same directory as config_file
+            config_dir = Path(config_file).parent
+            gas_config_path = config_dir / "gases.toml"
+        else:
+            gas_config_path = Path(gases_file)
+
         with open(gas_config_path, "rb") as f:
             self.gas_config = translate_gas_config(tomllib.load(f))
 
