@@ -310,6 +310,12 @@ class FlowSMS:
             },
         ]
 
+    def print_gases(self):
+        """Function that prints the available gases"""
+        print("Available gases:")
+        for gas in self.gas_list:
+            print(f"  {gas}")
+
     def status_old(self, delay=0.0, verbose=True):
         """Function that reads the flow rates of the gases in the Flow-SMS mass flow controllers
 

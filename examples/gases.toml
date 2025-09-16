@@ -1,205 +1,126 @@
-[H2_A]
-node_id = 4
+# FASSTCAT Gas Configuration
+# Each entry represents a single gas flow with explicit line and flow rate properties
+[inputs.1]
+valve = "I"
+mfc_a = 4
+mfc_b = 13
+
+[inputs.2]
+valve = "H"
+mfc_a = 4
+mfc_b = 13
+
+[inputs.3]
+valve = ""
+mfc_a = 5
+mfc_b = 12
+
+[inputs.4]
+valve = "D"
+mfc_a = 6
+mfc_b = 11
+
+[inputs.5]
+valve = "E"
+mfc_a = 7
+mfc_b = 10
+
+[inputs.6]
+valve = "G"
+mfc_a = 8
+mfc_b = ""
+
+[inputs.7]
+valve = "F"
+mfc_a = ""
+mfc_b = 9
+
+[gas_assignments]
+1 = {"valve_off" = "H2", "valve_on" = "D2"}
+2 = {"valve_off" = "D2", "valve_on" = "H2"}
+3 = {"valve_null" = "O2"}
+4 = {"valve_off" = "CO", "valve_on" = "CO2"}
+5 = {"valve_off" = "C2H6", "valve_on" = "CH4"}
+6 = {"valve_off" = "He", "valve_on" = "N2"}
+7 = {"valve_off" = "N2", "valve_on" = "He"}
+
+[gas_config]
+[gas_config.H2]
 cal_id = 0
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["I", "OFF"]
 
-[H2_B]
-node_id = 13
-cal_id = 0
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["H", "ON"]
-
-[D2_A]
-node_id = 4
+[gas_config.D2]
 cal_id = 1
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["I", "ON"]
 
-[D2_B]
-node_id = 13
-cal_id = 1
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["H", "OFF"]
-
-[O2_A]
-node_id = 5
+[gas_config.O2]
 cal_id = 0
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
 
-[O2_B]
-node_id = 12
+[gas_config.CO]
+[gas_config.CO.high]
 cal_id = 0
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
 
-[CO_AH]
-node_id = 6
-cal_id = 0
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["D", "OFF"]
-
-[CO_AL]
-node_id = 6
+[gas_config.CO.low]
 cal_id = 3
 flow_range = [0.36, 18.0]
 cal_factor = 1.0
 float_to_int_factor = 18
-valve_settings = ["D", "OFF"]
 
-[CO_BH]
-node_id = 11
-cal_id = 0
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["D", "OFF"]
-
-[CO_BL]
-node_id = 11
-cal_id = 3
-flow_range = [0.36, 18.0]
-cal_factor = 1.0
-float_to_int_factor = 18
-valve_settings = ["D", "OFF"]
-
-[CO2_AH]
-node_id = 6
+[gas_config.CO2]
+[gas_config.CO2.high]
 cal_id = 1
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["D", "ON"]
 
-[CO2_AL]
-node_id = 6
+[gas_config.CO2.low]
 cal_id = 2
 flow_range = [0.26, 13.0]
 cal_factor = 1.0
 float_to_int_factor = 13
-valve_settings = ["D", "ON"]
 
-[CO2_BH]
-node_id = 11
-cal_id = 1
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["D", "ON"]
-
-[CO2_BL]
-node_id = 11
-cal_id = 2
-flow_range = [0.26, 13.0]
-cal_factor = 1.0
-float_to_int_factor = 13
-valve_settings = ["D", "ON"]
-
-[CH4_A]
-node_id = 7
+[gas_config.CH4]
 cal_id = 0
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["E", "ON"]
 
-[CH4_B]
-node_id = 10
-cal_id = 0
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["E", "ON"]
-
-[C2H6_A]
-node_id = 7
+[gas_config.C2H6]
 cal_id = 1
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["E", "OFF"]
 
-[C2H6_B]
-node_id = 10
-cal_id = 1
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["E", "OFF"]
-
-[C3H8_A]
-node_id = 7
+[gas_config.C3H8]
 cal_id = 2
 flow_range = [0.6, 30.0]
 cal_factor = 1.0
 float_to_int_factor = 30
-valve_settings = ["E", "OFF"]
 
-[C3H8_B]
-node_id = 10
-cal_id = 2
-flow_range = [0.6, 30.0]
-cal_factor = 1.0
-float_to_int_factor = 30
-valve_settings = ["E", "OFF"]
-
-[He_A]
-node_id = 8
+[gas_config.He]
 cal_id = 0
 flow_range = [1.2, 60.0]
 cal_factor = 1.0
 float_to_int_factor = 60
-valve_settings = ["G", "OFF"]
 
-[He_B]
-node_id = 9
-cal_id = 0
-flow_range = [1.2, 60.0]
-cal_factor = 1.0
-float_to_int_factor = 60
-valve_settings = ["F", "ON"]
-
-[Ar_A]
-node_id = 8
+[gas_config.Ar]
 cal_id = 1
 flow_range = [1.2, 60.0]
 cal_factor = 1.0
 float_to_int_factor = 60
-valve_settings = ["G", "ON"]
 
-[Ar_B]
-node_id = 9
-cal_id = 1
-flow_range = [1.2, 60.0]
-cal_factor = 1.0
-float_to_int_factor = 60
-valve_settings = ["F", "OFF"]
-
-[N2_A]
-node_id = 8
+[gas_config.N2]
 cal_id = 2
 flow_range = [1.2, 60.0]
 cal_factor = 1.0
 float_to_int_factor = 60
-valve_settings = ["G", "ON"]
-
-[N2_B]
-node_id = 9
-cal_id = 2
-flow_range = [1.2, 60.0]
-cal_factor = 1.0
-float_to_int_factor = 60
-valve_settings = ["F", "OFF"] 
