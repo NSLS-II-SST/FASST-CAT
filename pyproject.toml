@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42", "wheel", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fasstcat"
+description = "FASST-CAT Catalysis control system"
+dynamic = ["version"]
+authors = [{ name = "Charles Titus", email= "ctitus@bnl.gov"}, { name = "Jorge Moncada Vivas", email="jmoncadav@bnl.gov"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "minimalmodbus",
+    "pyserial",
+    "pyModbusTCP",
+    "bronkhorst-propar",
+]
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.dependencies]
+pyserial = "*"
+
+[tool.pixi.pypi-dependencies]
+fasstcat = { path = ".", editable = true }
+
+[tool.pixi.tasks]

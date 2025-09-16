@@ -15,11 +15,11 @@ import logging
 
 import json
 
-from valves import create_valves
-from eurothermSerial import EuroSerial
-from eurothermTCP import EuroTCP
-from flowSMS import FlowSMS
-from utils import convert_com_port
+from .valves import create_valves
+from .eurothermSerial import EuroSerial
+from .eurothermTCP import EuroTCP
+from .flowSMS import FlowSMS
+from .utils import convert_com_port
 from pathlib import Path
 
 try:

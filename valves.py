@@ -238,11 +238,14 @@ class EthernetValves(ValvesBase):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.host, self.port))
             sock.sendall(f"{command}{self.out_terminator}".encode())
+            sock.setblocking(False)
             self._last_read = sock.recv(4096)
-            sock.close()
         except Exception as e:
             print(f"Failed to send command: {e}")
             self._last_read = ""
+        finally:
+            sock.close()
+
 
     def read(self):
         """Read response from Ethernet connection."""
