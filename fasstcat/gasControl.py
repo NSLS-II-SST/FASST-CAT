@@ -19,7 +19,7 @@ from .valves import create_valves
 from .eurothermSerial import EuroSerial
 from .eurothermTCP import EuroTCP
 from .flowSMS import FlowSMS
-from .utils import convert_com_port
+from .utils import convert_com_port, translate_gas_config
 from pathlib import Path
 
 try:
@@ -50,125 +50,6 @@ def create_eurotherm(config, flowSMS):
         return EuroSerial(euro_comport, euro_sub, flowSMS)
 
 
-def translate_gas_config(config):
-    """
-    Read the new gas configuration format and generate a dictionary equivalent
-    to the old gases.toml format, but only including connected gases.
-
-    Parameters
-    ----------
-    config_file : str
-        Path to the new gas configuration file
-
-    Returns
-    -------
-    dict
-        Dictionary in the old gases.toml format with only connected gases
-    """
-
-    # Get the hardware configuration and gas assignments
-    inputs = config.get("inputs", {})
-    gas_assignments = config.get("gas_assignments", {})
-    gas_config = config.get("gas_config", {})
-
-    # Dictionary to hold the generated gas flows (old format)
-    gas_flows = {}
-
-    # Process each input and its gas assignments
-    for input_id, assignment in gas_assignments.items():
-        input_id = str(input_id)
-        input_config = inputs.get(input_id, {})
-
-        # Get MFC node IDs for this input
-        mfc_a = input_config.get("mfc_a", "")
-        mfc_b = input_config.get("mfc_b", "")
-        valve = input_config.get("valve", "")
-
-        # Handle empty strings as None
-        if mfc_a == "":
-            mfc_a = None
-        if mfc_b == "":
-            mfc_b = None
-        if valve == "":
-            valve = None
-
-        # Process each gas assignment for this input
-        for valve_key, gas in assignment.items():
-            if not gas:  # Skip empty assignments
-                continue
-
-            # Determine valve position
-            if valve_key == "valve_off":
-                valve_position = "OFF"
-            elif valve_key == "valve_on":
-                valve_position = "ON"
-            elif valve_key == "valve_null":
-                valve_position = None
-            else:
-                continue  # Skip unknown valve keys
-
-            # Get gas configuration
-            gas_cfg = gas_config.get(gas, {})
-
-            # Check if gas has multiple flow rates
-            if "high" in gas_cfg and "low" in gas_cfg:
-                # Gas has high and low flow rates
-                for flow_type in ["high", "low"]:
-                    flow_cfg = gas_cfg[flow_type]
-
-                    # Create entries for both lines A and B if MFCs are available
-                    if mfc_a is not None:
-                        key_a = f"{gas}_A{flow_type[0].upper()}"
-                        gas_flows[key_a] = {
-                            "node_id": mfc_a,
-                            "cal_id": flow_cfg["cal_id"],
-                            "flow_range": flow_cfg["flow_range"],
-                            "cal_factor": flow_cfg["cal_factor"],
-                            "float_to_int_factor": (flow_cfg["float_to_int_factor"]),
-                        }
-                        if valve and valve_position is not None:
-                            gas_flows[key_a]["valve_settings"] = [valve, valve_position]
-
-                    if mfc_b is not None:
-                        key_b = f"{gas}_B{flow_type[0].upper()}"
-                        gas_flows[key_b] = {
-                            "node_id": mfc_b,
-                            "cal_id": flow_cfg["cal_id"],
-                            "flow_range": flow_cfg["flow_range"],
-                            "cal_factor": flow_cfg["cal_factor"],
-                            "float_to_int_factor": (flow_cfg["float_to_int_factor"]),
-                        }
-                        if valve and valve_position is not None:
-                            gas_flows[key_b]["valve_settings"] = [valve, valve_position]
-            else:
-                # Gas has standard flow rate
-                if mfc_a is not None:
-                    key_a = f"{gas}_A"
-                    gas_flows[key_a] = {
-                        "node_id": mfc_a,
-                        "cal_id": gas_cfg["cal_id"],
-                        "flow_range": gas_cfg["flow_range"],
-                        "cal_factor": gas_cfg["cal_factor"],
-                        "float_to_int_factor": (gas_cfg["float_to_int_factor"]),
-                    }
-                    if valve and valve_position is not None:
-                        gas_flows[key_a]["valve_settings"] = [valve, valve_position]
-
-                if mfc_b is not None:
-                    key_b = f"{gas}_B"
-                    gas_flows[key_b] = {
-                        "node_id": mfc_b,
-                        "cal_id": gas_cfg["cal_id"],
-                        "flow_range": gas_cfg["flow_range"],
-                        "cal_factor": gas_cfg["cal_factor"],
-                        "float_to_int_factor": (gas_cfg["float_to_int_factor"]),
-                    }
-                    if valve and valve_position is not None:
-                        gas_flows[key_b]["valve_settings"] = [valve, valve_position]
-
-    return gas_flows
-
-
 class GasControl:
     def __init__(self, config_file="config.json", gases_file=None) -> None:
         """Initialize the gas control system.
@@ -189,7 +70,7 @@ class GasControl:
             gas_config_path = Path(gases_file)
 
         with open(gas_config_path, "rb") as f:
-            self.gas_config = translate_gas_config(tomllib.load(f))
+            self.gas_config = tomllib.load(f)
 
         self.config = config
 
@@ -263,10 +144,12 @@ class GasControl:
         _, BPos = self.valves.get_valve_position("B")
         _, CPos = self.valves.get_valve_position("C")
         positions = (APos, BPos, CPos)
-        modes = {("OFF", "OFF", "OFF"): "Line A Continuous Mode",
-                 ("OFF", "ON", "OFF"): "Line B Continuous Mode",
-                 ("ON", "OFF", "ON"): "Pulses Loop Mode A", 
-                 ("ON", "ON", "ON"): "Pulses Loop Mode B",}
+        modes = {
+            ("OFF", "OFF", "OFF"): "Line A Continuous Mode",
+            ("OFF", "ON", "OFF"): "Line B Continuous Mode",
+            ("ON", "OFF", "ON"): "Pulses Loop Mode A",
+            ("ON", "ON", "ON"): "Pulses Loop Mode B",
+        }
         mode = modes.get(positions, f"Unknown valve mode {positions}!")
         return mode
 

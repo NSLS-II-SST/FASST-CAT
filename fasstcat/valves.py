@@ -2,7 +2,7 @@ import time
 import socket
 import serial
 from abc import ABC, abstractmethod
-from .utils import convert_com_port
+from .utils import convert_com_port, translate_gas_config, make_gas_line_dict
 
 
 class ValvesBase(ABC):
@@ -19,7 +19,11 @@ class ValvesBase(ABC):
             out_terminator (str): Command termination character [default: "\r"]
         """
         self.out_terminator = out_terminator
-        self.gas_config = gas_config
+        self.inputs = gas_config["inputs"]
+        self.gas_assignments = gas_config["gas_assignments"]
+        self.gas_config = gas_config["gas_config"]
+        self.gas_line_dict = make_gas_line_dict(gas_config)
+        self.old_gas_config = translate_gas_config(gas_config)
 
     @abstractmethod
     def write(self, command: str) -> None:
@@ -167,12 +171,12 @@ class ValvesBase(ABC):
         """Set valve positions to feed specified gas.
 
         Args:
-            gas_name (str): Name of gas to feed (must match config file)
+            gas_name (str): Name of gas to feed (must match old style of config file)
         """
-        if gas_name not in self.gas_config:
+        if gas_name not in self.old_gas_config:
             raise ValueError(f"Unknown gas: {gas_name}")
 
-        gas_settings = self.gas_config[gas_name]
+        gas_settings = self.old_gas_config[gas_name]
         if "valve_settings" not in gas_settings:
             raise ValueError(f"No valve settings defined for gas: {gas_name}")
 
@@ -181,6 +185,43 @@ class ValvesBase(ABC):
         self.move_valve_to_position(valve, position)
 
         print(f"Feeding {gas_name}")
+
+    def select_gas(self, gas_name, line):
+        if gas_name not in self.gas_line_dict:
+            raise ValueError(f"Gas: {gas_name} not configured")
+
+        if line not in self.gas_line_dict[gas_name]:
+            raise ValueError(f"Line: {line} not configured for gas: {gas_name}")
+
+        input_num = self.gas_line_dict[gas_name][line].keys()[0]
+        position = self.gas_line_dict[gas_name][line][input_num]
+        if position == "valve_off":
+            position = "OFF"
+            valve = self.gas_config["inputs"][input_num].get("valve", "")
+        elif position == "valve_on":
+            position = "ON"
+            valve = self.gas_config["inputs"][input_num].get("valve", "")
+        elif position == "valve_null":
+            return
+
+        self.move_valve_to_position(valve, position)
+
+    def get_gas_status(self, gas_name: str, line: str) -> bool:
+        if gas_name not in self.gas_line_dict:
+            raise ValueError(f"Gas: {gas_name} not configured")
+
+        input_num = self.gas_line_dict[gas_name][line].keys()[0]
+        position = self.gas_line_dict[gas_name][line][input_num]
+        if position == "valve_off":
+            position = "OFF"
+            valve = self.gas_config["inputs"][input_num].get("valve", "")
+        elif position == "valve_on":
+            position = "ON"
+            valve = self.gas_config["inputs"][input_num].get("valve", "")
+        elif position == "valve_null":
+            return True
+
+        return self.get_valve_position(valve)[1] == position
 
 
 class SerialValves(ValvesBase):

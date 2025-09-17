@@ -1,6 +1,6 @@
 import propar
 from .serialTCP import SerialTCP
-from .utils import convert_com_port
+from .utils import convert_com_port, translate_gas_config
 import time
 
 
@@ -32,9 +32,9 @@ class FlowSMS:
             self.mfc_master = propar.master(mfc_comport, 38400)
 
         self.valves = valves
-
+        self.gas_config = gas_config
         # Load gas list
-        self.load_gas_config(gas_config)
+        self.load_gas_config(translate_gas_config(gas_config))
 
     def load_gas_config(self, gas_config):
         """Load gas configuration into lookup dictionaries.
@@ -309,6 +309,33 @@ class FlowSMS:
                 "parm_type": propar.PP_TYPE_INT8,
             },
         ]
+
+    def get_input_line_status(self, input_num: str, line: str):
+        if line == "A":
+            node_id = self.gas_config["inputs"][input_num].get("mfc_a", "")
+        elif line == "B":
+            node_id = self.gas_config["inputs"][input_num].get("mfc_b", "")
+        else:
+            raise ValueError(f"Line must be A or B, received {line}")
+
+        params = self.generate_params(node_id)
+        values = self.mfc_master.read_parameters(params)
+        time.sleep(0.01)
+
+        measured_flow = values[0].get("data", 0.0)
+        setpoint_readback = values[1].get("data", 0.0)
+        gas_type = values[2].get("data", None)
+        return measured_flow, setpoint_readback, gas_type
+
+    def get_gas_status(self, gas_name: str, line: str) -> tuple[float, float, int]:
+        if gas_name not in self.gas_line_dict:
+            raise ValueError(f"Gas: {gas_name} not configured")
+
+        if line not in self.gas_line_dict[gas_name]:
+            raise ValueError(f"Line: {line} not configured for gas: {gas_name}")
+
+        input_num = self.gas_line_dict[gas_name][line].keys()[0]
+        return self.get_input_line_status(input_num, line)
 
     def print_gases(self):
         """Function that prints the available gases"""

@@ -423,7 +423,7 @@ packages:
 - pypi: ./
   name: fasstcat
   version: 0.0.0
-  sha256: 4192cbc418bee46e5bdddf58ba19445d496aeff7c3df701ed2409a33a1c78b83
+  sha256: 1413abd5c7327fd55eb0e7401cf289d0c96a193b4c9cca08b4e6464542859a14
   requires_dist:
   - minimalmodbus
   - pyserial
