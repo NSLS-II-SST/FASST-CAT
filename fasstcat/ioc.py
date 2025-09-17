@@ -4,21 +4,24 @@ from caproto.server import PVGroup, pvproperty, SubGroup, template_arg_parser, r
 from caproto._data import ChannelType
 from fasstcat.utils import get_config_files
 from fasstcat.flowSMS import FlowSMS
+from fasstcat.valves import create_valves
 
 import tomllib
 import json
 
 
 def inputLineFactory(input_num, gas_config):
-    available_gases = gas_config.get("available_gases", [])
-    gas_details = gas_config.get("gas_details", {})
-    a_enabled = gas_config.get("a_enabled", False)
-    b_enabled = gas_config.get("b_enabled", False)
+    gas_assignments = gas_config["gas_assignments"].get(input_num, {})
+    available_gases = set(gas_assignments.values())
+    a_enabled = gas_config["inputs"].get("mfc_a", "") != ""
+    b_enabled = gas_config["inputs"].get("mfc_b", "") != ""
 
     # Determine flow limits based on available gases
     # Use the highest upper limit among available gases
     max_flow = 0.0
-    for gas_name, details in gas_details.items():
+    for gas_name, details in gas_config["gas_config"].items():
+        if gas_name not in available_gases:
+            continue
         if isinstance(details, dict) and "flow_range" in details:
             max_flow = max(max_flow, details["flow_range"][1])
         elif isinstance(details, dict):
@@ -39,63 +42,51 @@ def inputLineFactory(input_num, gas_config):
             dtype=ChannelType.ENUM,
             doc=f"Gas selection for Input {input_num}",
         )
-        Gas_Name = (
-            pvproperty(
-                value=available_gases[0] if available_gases else "",
+        Gas_Name = pvproperty(
+                value="",
                 dtype=str,
                 max_length=20,
                 read_only=True,
                 doc="Current gas name based on selection",
-            ),
-        )
+            )
         # Gas flow for line A (only if enabled)
-        A_SP = (
-            pvproperty(
+        A_SP = pvproperty(
                 value=0.0,
                 dtype=float,
                 doc=f"Setpoint for Input {input_num}, A line (sccm)",
                 units="sccm",
                 lower_ctrl_limit=0.0,
                 upper_ctrl_limit=max_flow,
-            ),
-        )
-        A_RB = (
-            pvproperty(
+            )
+        A_RB = pvproperty(
                 value=0.0,
                 dtype=float,
                 read_only=True,
                 doc=f"Readback for Input {input_num}, A line (sccm)",
                 units="sccm",
-            ),
-        )
-        A_ENABLED = (
-            pvproperty(
+            )
+        A_ENABLED = pvproperty(
                 value=a_enabled,
                 dtype=bool,
                 read_only=True,
                 doc=f"A line enabled for Input {input_num}",
-            ),
-        )
+            )
         # Gas flow for line B (only if enabled)
-        B_SP = (
-            pvproperty(
+        B_SP = pvproperty(
                 value=0.0,
                 dtype=float,
                 doc=f"Setpoint for Input {input_num}, B line (sccm)",
                 units="sccm",
                 lower_ctrl_limit=0.0,
                 upper_ctrl_limit=max_flow,
-            ),
-        )
-        B_RB = (
-            pvproperty(
+            )
+        B_RB = pvproperty(
                 value=0.0,
                 dtype=float,
                 read_only=True,
                 doc=f"Readback for Input {input_num}, B line (sccm)",
                 units="sccm",
-            ),
-        )
+            )
         B_ENABLED = pvproperty(
             value=b_enabled,
             dtype=bool,
@@ -107,24 +98,36 @@ def inputLineFactory(input_num, gas_config):
             super().__init__(*args, **kwargs)
             self.flowSMS = flowSMS
 
-        @A_RB.startup
+        @A_RB.scan(0.5)
         async def A_RB(self, instance, async_lib):
-            rb, sp, _ = self.flowSMS.get_gas_status(self.Gas_Name.value, "A")
-            self.A_RB.write(rb)
-            self.A_SP.write(sp)
+            rb, sp, _ = self.flowSMS.get_input_line_status(input_num, "A")
+            await self.A_RB.write(rb)
+            await self.A_SP.write(sp)
 
-        @B_RB.startup
+        @B_RB.scan(0.5)
         async def B_RB(self, instance, async_lib):
-            rb, sp, _ = self.flowSMS.get_gas_status(self.Gas_Name.value, "B")
-            self.B_RB.write(rb)
-            self.B_SP.write(sp)
+            rb, sp, _ = self.flowSMS.get_input_line_status(input_num, "B")
+            await self.B_RB.write(rb)
+            await self.B_SP.write(sp)
 
     return InputLine
 
+def flowSMSFactory(gas_config, flowSMS):
+    inputClasses = [inputLineFactory(input_num, gas_config) for input_num in ["1", "2", "3", "4", "5", "6", "7"]]
+    class flowSMSIOC(PVGroup):
+        Input1 = SubGroup(inputClasses[0], flowSMS=flowSMS)
+        Input2 = SubGroup(inputClasses[1], flowSMS=flowSMS)
+        Input3 = SubGroup(inputClasses[2], flowSMS=flowSMS)
+        Input4 = SubGroup(inputClasses[3], flowSMS=flowSMS)
+        Input5 = SubGroup(inputClasses[4], flowSMS=flowSMS)
+        Input6 = SubGroup(inputClasses[5], flowSMS=flowSMS)
+        Input7 = SubGroup(inputClasses[6], flowSMS=flowSMS)
+
+    return flowSMSIOC
 
 if __name__ == "__main__":
     parser, split_args = template_arg_parser(
-        desc="Simulation IOC Generator", default_prefix="SIM:"
+        desc="Simulation IOC Generator", default_prefix="FASSTCAT:"
     )
     parser.add_argument(
         "-c",
@@ -152,7 +155,8 @@ if __name__ == "__main__":
     with open(config_path, "r") as f:
         config = json.load(f)
 
-    flowSMS = FlowSMS(config, gas_config)
-    InputLineClass = inputLineFactory(1, gas_config)
-    ioc = InputLineClass(flowSMS=flowSMS, **ioc_options)
+    valves = create_valves(config, gas_config)
+    flowSMS = FlowSMS(config, gas_config, valves)
+    FlowSMSIOCClass = flowSMSFactory(gas_config, flowSMS)
+    ioc = FlowSMSIOCClass(**ioc_options)
     run(ioc.pvdb, **run_options)

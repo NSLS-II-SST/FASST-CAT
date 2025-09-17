@@ -1,6 +1,6 @@
 import propar
 from .serialTCP import SerialTCP
-from .utils import convert_com_port, translate_gas_config
+from .utils import convert_com_port, translate_gas_config, make_gas_line_dict
 import time
 
 
@@ -33,6 +33,7 @@ class FlowSMS:
 
         self.valves = valves
         self.gas_config = gas_config
+        self.gas_line_dict = make_gas_line_dict(gas_config)
         # Load gas list
         self.load_gas_config(translate_gas_config(gas_config))
 
@@ -318,6 +319,8 @@ class FlowSMS:
         else:
             raise ValueError(f"Line must be A or B, received {line}")
 
+        if node_id == "":
+            return 0, 0, 0
         params = self.generate_params(node_id)
         values = self.mfc_master.read_parameters(params)
         time.sleep(0.01)
@@ -334,8 +337,11 @@ class FlowSMS:
         if line not in self.gas_line_dict[gas_name]:
             raise ValueError(f"Line: {line} not configured for gas: {gas_name}")
 
-        input_num = self.gas_line_dict[gas_name][line].keys()[0]
-        return self.get_input_line_status(input_num, line)
+        input_num = list(self.gas_line_dict[gas_name][line].keys())[0]
+        if self.valves.get_gas_status(gas_name, line):
+            return self.get_input_line_status(input_num, line)
+        else:
+            return 0, 0, 0
 
     def print_gases(self):
         """Function that prints the available gases"""

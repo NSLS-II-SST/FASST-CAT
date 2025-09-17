@@ -193,14 +193,14 @@ class ValvesBase(ABC):
         if line not in self.gas_line_dict[gas_name]:
             raise ValueError(f"Line: {line} not configured for gas: {gas_name}")
 
-        input_num = self.gas_line_dict[gas_name][line].keys()[0]
+        input_num = list(self.gas_line_dict[gas_name][line].keys())[0]
         position = self.gas_line_dict[gas_name][line][input_num]
         if position == "valve_off":
             position = "OFF"
-            valve = self.gas_config["inputs"][input_num].get("valve", "")
+            valve = self.inputs[input_num].get("valve", "")
         elif position == "valve_on":
             position = "ON"
-            valve = self.gas_config["inputs"][input_num].get("valve", "")
+            valve = self.inputs[input_num].get("valve", "")
         elif position == "valve_null":
             return
 
@@ -210,14 +210,14 @@ class ValvesBase(ABC):
         if gas_name not in self.gas_line_dict:
             raise ValueError(f"Gas: {gas_name} not configured")
 
-        input_num = self.gas_line_dict[gas_name][line].keys()[0]
+        input_num = list(self.gas_line_dict[gas_name][line].keys())[0]
         position = self.gas_line_dict[gas_name][line][input_num]
         if position == "valve_off":
             position = "OFF"
-            valve = self.gas_config["inputs"][input_num].get("valve", "")
+            valve = self.inputs[input_num].get("valve", "")
         elif position == "valve_on":
             position = "ON"
-            valve = self.gas_config["inputs"][input_num].get("valve", "")
+            valve = self.inputs[input_num].get("valve", "")
         elif position == "valve_null":
             return True
 

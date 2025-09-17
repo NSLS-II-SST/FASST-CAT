@@ -1,5 +1,6 @@
 import socket
 import time
+import threading
 
 class SerialTCP:
     def __init__(self, address, port, timeout=None, write_timeout=None, read_timeout=1, max_retries=3, retry_delay=1, verbose=False):
@@ -13,6 +14,7 @@ class SerialTCP:
         self._sock = None  # Persistent socket
         self.verbose = verbose
         self._last_read = b""
+        self.lock = threading.Lock()
 
     def _log(self, message):
         """Log a message if verbose is enabled."""
@@ -70,24 +72,27 @@ class SerialTCP:
 
     def write(self, data):
         """Write data to the socket with retry functionality."""
-        self._ensure_socket_open()  # Ensure socket is open before writing
-        for attempt in range(self.max_retries):
-            try:
-                self._log(f"Attempting to write data: {data}")
-                self._sock.settimeout(self.write_timeout)  # Set write timeout
-                self._sock.sendall(data)
-                self._log("Write successful.")
-                self._read()  # Immediately read response after writing
-                break  # Exit loop if successful
-            except (socket.error, BrokenPipeError) as e:
-                self._log(f"Write attempt {attempt + 1} failed: {e}")
-                time.sleep(self.retry_delay)
-                if attempt < self.max_retries - 1:
-                    self._log("Retrying...")
-                    self.open_socket()  # Reconnect and retry if retries are left
-                else:
-                    self._log("Max retries reached, raising ConnectionError.")
-                    raise ConnectionError("Failed to write after multiple retries.")
+        with self.lock:
+            # print("Writing")
+            self._ensure_socket_open()  # Ensure socket is open before writing
+            for attempt in range(self.max_retries):
+                try:
+                    self._log(f"Attempting to write data: {data}")
+                    self._sock.settimeout(self.write_timeout)  # Set write timeout
+                    self._sock.sendall(data)
+                    self._log("Write successful.")
+                    self._read()  # Immediately read response after writing
+                    break  # Exit loop if successful
+                except (socket.error, BrokenPipeError) as e:
+                    self._log(f"Write attempt {attempt + 1} failed: {e}")
+                    time.sleep(self.retry_delay)
+                    if attempt < self.max_retries - 1:
+                        self._log("Retrying...")
+                        self.open_socket()  # Reconnect and retry if retries are left
+                    else:
+                        self._log("Max retries reached, raising ConnectionError.")
+                        raise ConnectionError("Failed to write after multiple retries.")
+            # print("Done Writing")
 
     @property
     def in_waiting(self):
