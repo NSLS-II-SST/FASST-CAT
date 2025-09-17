@@ -34,6 +34,7 @@ pyserial = "*"
 ipython = "*"
 numpy = "*"
 matplotlib = "*"
+caproto = ">=1.2.0,<2"
 
 [tool.pixi.pypi-dependencies]
 fasstcat = { path = ".", editable = true }
