@@ -201,6 +201,24 @@ class PulseControl(PVGroup):
             await self.Line_Mode.write("pulses")
 
 
+def fasstcatFactory(gasControl):
+    flowSMS = gasControl.flowSMS
+    FlowSMSIOCClass = flowSMSFactory(gas_config, flowSMS)
+
+    class Fasstcat(PVGroup):
+        flowsms = SubGroup(FlowSMSIOCClass, prefix="flowsms}")
+        pulse = SubGroup(PulseControl, prefix="pulse}")
+        Segment_Status = pvproperty(
+            value="idle",
+            name="}Segment_Status",
+            enum_strings=["idle", "running"],
+            record="mbbo",
+            dtype=ChannelType.ENUM,
+            doc="Overall segment status (0=idle, 1=running)",
+            read_only=True,
+        )
+
+
 if __name__ == "__main__":
     parser, split_args = template_arg_parser(
         desc="Simulation IOC Generator", default_prefix="FASSTCAT:"
@@ -235,6 +253,5 @@ if __name__ == "__main__":
 
     valves = gasControl.valves
     flowSMS = gasControl.flowSMS
-    FlowSMSIOCClass = flowSMSFactory(gas_config, flowSMS)
     ioc = FlowSMSIOCClass(**ioc_options)
     run(ioc.pvdb, **run_options)
